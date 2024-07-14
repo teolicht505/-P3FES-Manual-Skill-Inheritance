@@ -1,0 +1,30 @@
+set DrawCodeCave 0x009d0600
+
+ASM_START 0x003cb940
+    j 0x009d0600
+    nop
+ASM_END
+
+
+ASM_START DrawCodeCave
+    mtc1 $zero, $f12
+    lh $v1, 0x12($s0)
+    li $v0, 0xffffff00
+    or $a2, $v1, $v0
+    lui $v0, 0x3f80
+    mtc1 $v0, $f14
+    li $a0, 0x5
+    daddu $a1, $zero, $zero
+    li $a3, 0x5
+    daddu $t0, $zero, $zero
+    daddu $t1, $zero, $zero
+    mov.s $f13, $f12
+    mov.s $f15, $f14
+    lw $t2, 0xd0($s0)
+    jal 0x003ca780
+    nop
+    ld $ra, 0x30($sp)
+    ld $s1, 0x20($sp)
+    j 0x003cb948
+    nop
+ASM_END

@@ -1,0 +1,369 @@
+set createInheritanceSkillLinkedList 0x009D1C00
+set viewHandler 0x009D1ED0
+
+set originalSkillInheritanceSetter 0x003D7978
+set viewHandlerDontChangeState 0x003DDD84
+set viewHandlerHook 0x003dddc4
+
+// Result persona original skill number -> 009D1EA0
+// Choosen inherited skills list -> 009D1EB0
+// Inheritance skills linked list -> 009D1EC0
+// Number of inheritable skills -> 009D1EC4
+// Selected inheritable skill index -> 009D1EC8
+// Current final inherited skill list index -> 009D1ECC
+
+ASM_START viewHandler
+    addiu $sp,$sp,-0xB0
+    sd $ra,0x90($sp)
+    sd $fp,0x80($sp)
+    sd $s7,0x70($sp)
+    sd $s6,0x60($sp)
+    sd $s5,0x50($sp)
+    sd $s4,0x40($sp)
+    sd $s3,0x30($sp)
+    sd $s2,0x20($sp)
+    sd $s1,0x10($sp)
+    sd $s0,0x0($sp)
+
+    sub $s3, $s1, 0x74 // Save fusion structure
+
+    lui $s7, 0x009d
+    lw $v0, 0x1EC0($s7) // Load inheritable skills linked list address
+    bne $v0, $zero, listAlreadyCreated
+    nop
+        addiu $a0, $s3, 0x20 // a0 -> persona_result_info in fusion structure
+        lw $a1, 0x18($s3) // a1 -> array_of_personas_in_fusion
+        lw $a2, 0xc($s3) // a2 -> number of members of fusion
+        jal 0x009D1C00 // Create linked list with all inheritable skills
+        nop
+        sw $v0, 0x1EC0($s7)
+        sw $v1, 0x1EC4($s7)
+        sw $a0, 0x1EA0($s7)
+
+    listAlreadyCreated: lw $s0, 0x1EC0($s7) // New linked list info
+    lw $s1, 0x1EC4($s7) // Number of inheritable skills
+    lw $s2, 0x1EC8($s7) // Selected inheritable skill index
+
+    lui $s6, 0x007e // Check X press
+    lhu $v0, 0x094e($s6)
+    andi $v0, $v0, 0x40
+    beq $v0, $zero, x_not_pressed
+    nop
+    lhu $v0, 0x0958($s6)
+    andi $v0, $v0, 0x40
+    bne $v0, $zero, x_pressed
+    nop
+
+    x_not_pressed: lhu $v0, 0x094e($s6) // Check up press
+    andi $v0, $v0, 0x1000
+    bne $v0, $zero, up_pressed
+    nop
+
+    up_not_pressed: lhu $v0, 0x094e($s6) // Check down press
+    andi $v0, $v0, 0x4000
+    beq $v0, $zero, functionEnd
+    nop
+
+    down_pressed: addiu $v0, $zero, 0x1
+    sub $s2, $s2, $v0
+    bgez $s2, final_jump
+    nop
+    lw $v1, 0x10($s0)
+    sub $s2, $v1, $v0
+    final_jump: beq $zero, $zero, update_index
+    nop
+
+    up_pressed: addiu $v0, $zero, 0x1
+    add $s2, $s2, $v0
+
+    update_index: daddu $v0, $zero, $s2
+    lw $v1, 0x10($s0)
+    div $v0, $v1
+    mfhi $v0
+    sw $v0, 0x1EC8($s7)
+    beq $zero, $zero, functionEnd
+    nop
+
+    x_pressed: lw $v0, 0x10($s0) // If there are no elements in the linked list we don't continue
+    beq $v0, $zero, functionEnd
+    nop
+    lw $s6,0x4($s0)
+    li $s5, 0x0
+    beq $zero,$zero,searchIndexForEnd // For loop to find current index element
+    nop
+    searchIndexForStart: bne $s5, $s2, searchIndexForCondition // If index not found look next one
+    nop
+    lhu $s4, 0x4($s6)
+    daddu $a0,$s0,$zero // a0 -> linked list info
+    addiu $a1,$a0, 0x4 // a1 -> first linked list element address in linked list info
+    daddu $a2, $s6, $zero // a2 -> linked list element to delete
+    jal 0x003C49E0 // Delete element from linked list
+    nop
+    lw $v0, 0x1ECC($s7)
+    li $v1, 0x1
+    sll $v0, $v0, $v1
+    addiu $v1, $s7, 0x1EB0
+    addu $v0, $v0, $v1 // Get current list position to store chosen skill
+    sh $s4, 0x0($v0)
+
+    lw $v0, 0x1ECC($s7) // Update skill index
+    li $v1, 0x1
+    addu $v0, $v0, $v1
+    sw $v0, 0x1ECC($s7)
+
+    sw $zero, 0x1EC8($s7) // Update linked list index to 0
+
+    bne $s1, $v0, functionEnd // If we still need to select more skills we jump to function end
+    nop
+
+    addu $a1, $s7, 0x1EB0
+    addiu $a0, $s3, 0x2c // Get result persona skills address
+    lw $v0, 0x1EA0($s7)
+    sub $v0, $v0, $s1
+    li $v1, 0x1
+    sll $v0, $v0, $v1
+    addu $a0, $a0, $v0
+    sll $a2, $s1, $v1
+    jal 0x00521250 // memcpy our skill list onto the result persona list
+    nop
+
+    daddu $a0, $s0, $zero 
+    jal 0x003c45f0 // Free linked list
+    nop
+
+    addu $a0, $s7, 0x1EA0
+    daddu $a1, $zero, $zero
+    li $a2, 0x30
+    jal 0x00521408 // memset to 0 the global values we used for next fusion
+    nop
+
+    li $v0, 0x1 // Continue with fusion
+
+    beq $zero,$zero,proceedToFusion
+    nop 
+    searchIndexForCondition: addiu $s5,$s5,0x1
+    lw $s6,0x10($s6)
+    searchIndexForEnd: bne $s6,$zero,searchIndexForStart
+    nop
+
+
+    functionEnd: li $v0, 0x0
+
+    proceedToFusion: nop
+
+    ld $ra,0x90($sp)
+    ld $fp,0x80($sp)
+    ld $s7,0x70($sp)
+    ld $s6,0x60($sp)
+    ld $s5,0x50($sp)
+    ld $s4,0x40($sp)
+    ld $s3,0x30($sp)
+    ld $s2,0x20($sp)
+    ld $s1,0x10($sp)
+    ld $s0,0x0($sp)
+    addiu $sp,$sp,0xB0
+    jr $ra
+ASM_END
+
+ASM_START viewHandlerHook
+    jal 0x009D1ED0
+    nop //sw $v0, 0x0($s1)
+ASM_END
+
+ASM_START viewHandlerDontChangeState
+    nop
+    nop
+ASM_END
+
+ASM_START originalSkillInheritanceSetter
+    nop
+    nop
+    nop
+    nop
+    nop
+    nop
+    nop
+    addiu $a1, $zero, 0xfff // We insert 0xfff into every inherited skill position
+    // This will bug the view and inherited skills will show up blank, perfect for this mod to replace later
+
+ASM_END
+
+// ARGUMENTS ------------------------|
+// a0 -> persona_result_info         |
+// a1 -> array_of_personas_in_fusion |
+// a2 -> number of members of fusion |
+// RETURNS ------------------------- |
+// v0 -> skill linked list info      |
+// v1 -> number of inherited skills  |
+// a0 -> number of persona skills    |
+ASM_START createInheritanceSkillLinkedList
+    addiu $sp,$sp,-0xB0
+    sd $ra,0x90($sp)
+    sd $fp,0x80($sp)
+    sd $s7,0x70($sp)
+    sd $s6,0x60($sp)
+    sd $s5,0x50($sp)
+    sd $s4,0x40($sp)
+    sd $s3,0x30($sp)
+    sd $s2,0x20($sp)
+    sd $s1,0x10($sp)
+    sd $s0,0x0($sp)
+
+    daddu $s4,$a0,$zero // persona_result_info
+    daddu $s6,$a1,$zero // array_of_personas_in_fusion
+    daddu $s7,$a2,$zero // members_of_fusion
+
+    daddu $s2,$zero,$zero
+    daddu $a0,$zero,$zero
+    daddu $a1,$zero,$zero
+    daddu $a2,$zero,$zero
+    daddu $a3,$zero,$zero
+    jal 0x003c44d0 // Create linked list info for all possible inherited skills
+    nop
+
+    daddu $s1,$v0,$zero
+    daddu $s3,$zero,$zero
+    beq $zero,$zero,personaForLoopCondition
+    nop 
+
+    personaForLoopStart: daddu $s5,$zero,$zero
+    sll $v0,$s3,0x02
+    addu $v0,$s6,$v0 // Get persona in list
+    sd $v0,0xA0($sp) 
+    beq $zero,$zero,skillForLoopCondition
+    nop
+    
+    skillForLoopStart: sll $v1,$s5,0x01
+    ld $v0,0xA0($sp)
+    lw $v0,0x0($v0)
+    addu $v0,$v0,$v1
+    lhu $s0,0xC($v0) // Load current persona skill
+    beq $s0,$zero,nextSkillIteration // If skill is null we jump to next skill iteration
+    nop 
+
+    addiu $s2,$s2,0x1 // Increment iterations counter
+    daddu $a0,$s4,$zero // $a0 -> persona_result_info
+    daddu $a1,$s0,$zero // $a1 -> current_skill
+    jal 0x00176990 // Get index of skill, if it doesn't exist return -1
+    nop
+    addiu $v1,$zero,-0x1
+    bne $v0,$v1,nextSkillIteration  // If skill is present in result persona we jump to next skill iteration
+    nop 
+
+    daddu $a0,$s1,$zero // $a0 -> inherited linked list information
+    addiu $a1,$s1,0x4 // $a1 -> linked list first element
+    daddu $a2,$s0,$zero // $a2 -> value to find, in this case current_skill
+    jal 0x003C4BF0 // Returns linked list element equal to value, if not found returns void linked list element
+    nop 
+    bne $v0,$zero,nextSkillIteration // If current_skill already in the list we jump to next skill iteration
+    nop 
+
+    sll $v1,$s0,0x01 // Whole inheritance check of current_skill (black box, checks a bunch of static data in the code)
+    lw $v0,-0x48FC($gp)
+    addu $v0,$v0,$v1
+    lb $v0,0x0($v0)
+    addiu $v1,$zero,-0x1
+    bne $v0,$v1,endIf_1
+    nop 
+    addiu $v0,$zero,0x12
+    endIf_1: lhu $a0,0x2($s4)
+    sll $v1,$a0,0x03
+    sub $v1,$v1,$a0 // Should work, but originally was a "subu"
+    sll $a0,$v1,0x01
+    lw $v1,-0x48D0($gp)
+    addu $v1,$v1,$a0
+    lhu $a0,0xA($v1)
+    sll $v1,$a0,0x03
+    addu $v1,$v1,$a0
+    sll $v1,$v1,0x01
+    addu $v1,$v1,$a0
+    sll $a0,$v1,0x01
+    lui $v1,0x006A
+    addiu $v1,$v1,0x48F0
+    addu $v1,$v1,$a0
+    sll $v0,$v0,0x01
+    addu $v0,$v0,$v1
+    lh $fp,0x0($v0)
+    jal 0x0017D800
+    nop 
+    beq $v0,$zero,ifStatement_2
+    nop 
+    lui $v0,0x006A
+    addiu $v0,$v0,0x4E10
+    addu $v0,$v0,$s0
+    lb $v1,0x0($v0)
+    beq $zero,$zero,endIf_2
+    nop 
+    ifStatement_2: lui $v0,0x006A
+    addiu $v0,$v0,0x4BA0
+    addu $v0,$v0,$s0
+    lb $v1,0x0($v0)
+    endIf_2: bne $v1,$zero,ifStatement_3
+    nop 
+    daddu $v0,$zero,$zero
+    beq $zero,$zero,endIf_3
+    nop 
+    ifStatement_3: sll $v0,$fp,0x02
+    addu $v0,$v0,$fp
+    sll $v0,$v0,0x01
+    div $v0,$v1
+    mflo $v0
+    endIf_3: beq $v0,$zero,nextSkillIteration
+    nop 
+    ifSkillInheritable: daddu $a0,$s1,$zero // $a0 -> inherited linked list information
+    daddu $a1,$zero,$zero // $a1 -> new linked list element to add, in this case 0 will create a new element
+    daddu $a2,$zero,$zero // $a2 -> size of linked list element
+    jal 0x003C4910 // Adds a new element into an existing linked list
+    nop 
+    sw $s0,0x4($v0) // Store current_skill value in new added element
+
+    nextSkillIteration: addiu $s5,$s5,0x1
+    skillForLoopCondition: slti $v0,$s5,0x0008
+    bne $v0,$zero,skillForLoopStart
+    nop 
+
+    addiu $s3,$s3,0x1
+    personaForLoopCondition: slt $v0,$s3,$s7
+    bne $v0,$zero,personaForLoopStart
+
+
+    addiu $a1,$zero,0x8 // Get number of inherited skills result persona will have
+    lui $v1,0x006A
+    addiu $v1,$v1,0x48D0
+    beq $zero,$zero,inheritableSkillNumberForLoopEnd
+    nop 
+    inheritableSkillNumberForLoopStart: sll $a0,$a1,0x01
+    addu $v0,$v1,$a0
+    lb $v0,0x0($v0)
+    slt $at,$s2,$v0
+    bne $at,$zero,inheritableSkillNumberForLoopCondition
+    nop 
+    lui $v0,0x006A
+    addiu $v0,$v0,0x48D1
+    addu $v0,$v0,$a0
+    lb $s0,0x0($v0)
+    beq $zero,$zero,inheritableSkillNumberOut
+    nop 
+    inheritableSkillNumberForLoopCondition: addiu $a1,$a1,-0x1
+    inheritableSkillNumberForLoopEnd: bgez $a1,inheritableSkillNumberForLoopStart
+
+    inheritableSkillNumberOut: daddu $a0, $s4, $zero
+    jal 0x00176A30
+    nop
+    daddu $a0, $zero, $v0 // We return original number of skills persona has without inheritance
+    daddu $v0, $zero, $s1 // We return inheritable skills linked list info
+    daddu $v1, $zero, $s0 // We return number of skills we can inherit
+
+    ld $ra,0x90($sp)
+    ld $fp,0x80($sp)
+    ld $s7,0x70($sp)
+    ld $s6,0x60($sp)
+    ld $s5,0x50($sp)
+    ld $s4,0x40($sp)
+    ld $s3,0x30($sp)
+    ld $s2,0x20($sp)
+    ld $s1,0x10($sp)
+    ld $s0,0x0($sp)
+    addiu $sp,$sp,0xB0
+    jr $ra
+ASM_END
