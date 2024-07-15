@@ -5,6 +5,7 @@ set inheritanceMenuCase 0x009D2400
 
 write32 0x007BB8D4 0x009D2400 // Add case 9 for inheritance menu
 
+// View persona draw structure -> 009D1E90
 // Inheritance ended var -> 009D1EA4
 // Result persona original skill number -> 009D1EA0
 // Choosen inherited skills list -> 009D1EB0
@@ -100,12 +101,30 @@ ASM_START viewHandler
     daddu $a2, $s6, $zero // a2 -> linked list element to delete
     jal 0x003C49E0 // Delete element from linked list
     nop
+
     lw $v0, 0x1ECC($s7)
     li $v1, 0x1
     sll $v0, $v0, $v1
     addiu $v1, $s7, 0x1EB0
     addu $v0, $v0, $v1 // Get current list position to store chosen skill
     sh $s4, 0x0($v0)
+
+
+    lw $v0, 0x1ECC($s7) // Update draw view
+    li $v1, 0x1
+    sll $v0, $v0, $v1
+    lw $v1, 0x1E90($s7)
+    addu $v1, $v1, $v0
+    addiu $a0, $v1, 0x78 // Add current skill index
+
+    lw $v0, 0x1EA0($s7)
+    sub $v0, $v0, $s1
+    li $v1, 0x1
+    sll $v0, $v0, $v1
+    addu $v0, $a0, $v0 // Add original skills offset
+
+    sh $s4, 0x0($v0) // Store value of skill in view
+
 
     lw $v0, 0x1ECC($s7) // Update skill index
     li $v1, 0x1
@@ -165,6 +184,16 @@ ASM_START viewHandler
     ld $s0,0x0($sp)
     addiu $sp,$sp,0xB0
     jr $ra
+ASM_END
+
+ASM_START 0x003ddcc0
+    jal 0x0016deb0
+    lui $s7, 0x009d
+    dsll32 $s1, $v0, 0x10
+    dsra32 $s1, $s1, 0x10
+    daddu $a0, $s1, $zero
+    jal 0x0016dba0
+    sw $s0, 0x1E90($s7) // Save draw structure for updating the view
 ASM_END
 
 ASM_START inheritanceMenuCase
