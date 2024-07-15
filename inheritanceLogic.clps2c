@@ -1,10 +1,11 @@
 set createInheritanceSkillLinkedList 0x009D1C00
 set viewHandler 0x009D1ED0
+set msgHandler 0x009D2340
+set inheritanceMenuCase 0x009D2400
 
-set originalSkillInheritanceSetter 0x003D7978
-set viewHandlerDontChangeState 0x003DDD84
-set viewHandlerHook 0x003dddc4
+write32 0x007BB8D4 0x009D2400 // Add case 9 for inheritance menu
 
+// Inheritance ended var -> 009D1EA4
 // Result persona original skill number -> 009D1EA0
 // Choosen inherited skills list -> 009D1EB0
 // Inheritance skills linked list -> 009D1EC0
@@ -138,6 +139,7 @@ ASM_START viewHandler
     nop
 
     li $v0, 0x1 // Continue with fusion
+    sw $v0, 0x1EA4($s7)
 
     beq $zero,$zero,proceedToFusion
     nop 
@@ -165,27 +167,68 @@ ASM_START viewHandler
     jr $ra
 ASM_END
 
-ASM_START viewHandlerHook
+ASM_START inheritanceMenuCase
     jal 0x009D1ED0
-    nop //sw $v0, 0x0($s1)
+    nop
+    beq $v0, $zero, inheritanceNotEnded
+    nop
+    li $v0, 0x7
+    sw $v0, 0x4($s1)
+    inheritanceNotEnded: j 0x003ddfbc
+    nop
 ASM_END
 
-ASM_START viewHandlerDontChangeState
+ASM_START 0x003dde84
+    lui $v0, 0x009D
+    lw $v1, 0x1EA4($v0)
+    bne $v1,$zero,beginFusion
+    nop 
+    lw $v0,0x0($s1)
+    ori $v0,$v0,0x10
+    sw $v0,0x0($s1)
+    addiu $a0,$zero,0x2
+    jal 0x003C7430
+    nop 
+    beq $zero,$zero,beginMsgHandlerCase
+    nop 
+    beginFusion: lhu $a0,0x1E($s1)
+    jal 0x003D5DC0
+    sw $zero, 0x1EA4($v0)
+    daddu $a0,$v0,$zero
+    jal 0x003C7430
+    nop 
+    daddu $a0,$zero,$zero
+    jal 0x003C74E0
+    nop 
+    beginMsgHandlerCase: addiu $v0,$zero,0x8
+    sw $v0,0x4($s1)
+ASM_END
+
+ASM_START msgHandler
+    andi $v0, $v1, 0x10
+    beq $v0, $zero, msgOptionsHandler
     nop
+    li $v0, -0x11
+    and $v0, $v1, $v0
+    sw $v0, 0x0($s1)
+    li $v0, 0x9
+    sw $v0, 0x4($s1)
+    j 0x003ddfbc
+    nop
+
+    msgOptionsHandler: jal 0x003c7610
+    nop
+    j 0x003ddf84
     nop
 ASM_END
 
-ASM_START originalSkillInheritanceSetter
+ASM_START 0x003ddf7c
+    j 0x009D2340
     nop
-    nop
-    nop
-    nop
-    nop
-    nop
-    nop
-    addiu $a1, $zero, 0xfff // We insert 0xfff into every inherited skill position
-    // This will bug the view and inherited skills will show up blank, perfect for this mod to replace later
+ASM_END
 
+ASM_START 0x003DDD3C
+    sltiu $at, $v0, 0x10 // Add case 9 for inheritance menu
 ASM_END
 
 // ARGUMENTS ------------------------|
@@ -193,7 +236,7 @@ ASM_END
 // a1 -> array_of_personas_in_fusion |
 // a2 -> number of members of fusion |
 // RETURNS ------------------------- |
-// v0 -> skill linked list info      |
+// v0 -> skill linked list           |
 // v1 -> number of inherited skills  |
 // a0 -> number of persona skills    |
 ASM_START createInheritanceSkillLinkedList
@@ -350,7 +393,7 @@ ASM_START createInheritanceSkillLinkedList
     inheritableSkillNumberOut: daddu $a0, $s4, $zero
     jal 0x00176A30
     nop
-    daddu $a0, $zero, $v0 // We return original number of skills persona has without inheritance
+    daddu $a0, $zero, $v0 // We return total number of skills result persona has
     daddu $v0, $zero, $s1 // We return inheritable skills linked list info
     daddu $v1, $zero, $s0 // We return number of skills we can inherit
 
@@ -366,4 +409,18 @@ ASM_START createInheritanceSkillLinkedList
     ld $s0,0x0($sp)
     addiu $sp,$sp,0xB0
     jr $ra
+ASM_END
+
+
+ASM_START 0x003D7978
+    nop
+    nop
+    nop
+    nop
+    nop
+    nop
+    nop
+    addiu $a1, $zero, 0xfff // We insert 0xfff into every inherited skill position
+    // This will bug the view and inherited skills will show up blank, perfect for this mod to replace later
+
 ASM_END
