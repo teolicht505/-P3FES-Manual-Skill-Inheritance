@@ -2,6 +2,7 @@ set createInheritanceSkillLinkedList 0x009D1C00
 set viewHandler 0x009D1ED0
 set msgHandler 0x009D2340
 set inheritanceMenuCase 0x009D2400
+set clearChosenSkills 0x009D24A0
 
 write32 0x007BB8D4 0x009D2400 // Add case 9 for inheritance menu
 
@@ -9,6 +10,7 @@ write32 0x007BB8D4 0x009D2400 // Add case 9 for inheritance menu
 // Inheritance ended var -> 009D1EA4
 // Result persona original skill number -> 009D1EA0
 // Choosen inherited skills list -> 009D1EB0
+
 // Inheritance skills linked list -> 009D1EC0
 // Number of inheritable skills -> 009D1EC4
 // Selected inheritable skill index -> 009D1EC8
@@ -151,11 +153,14 @@ ASM_START viewHandler
     jal 0x003c45f0 // Free linked list
     nop
 
-    addu $a0, $s7, 0x1EA0
+    addu $a0, $s7, 0x1EB0
     daddu $a1, $zero, $zero
-    li $a2, 0x30
+    li $a2, 0x10
     jal 0x00521408 // memset to 0 the global values we used for next fusion
     nop
+
+    sw $zero, 0x1EC0($s7) // Clear former skill linked list
+    sw $zero, 0x1ECC($s7) // Reset skill list index
 
     li $v0, 0x1 // Continue with fusion
     sw $v0, 0x1EA4($s7)
@@ -184,6 +189,51 @@ ASM_START viewHandler
     ld $s0,0x0($sp)
     addiu $sp,$sp,0xB0
     jr $ra
+ASM_END
+
+ASM_START clearChosenSkills
+    lui $a3, 0x009d
+    lw $v1, 0x1e90($a3)
+    addiu $a0, $v1, 0x78 // Add current skill index
+
+    lw $v0, 0x1EA0($a3) // Draw result structure
+    lw $v1, 0x1ec4($a3)
+    sub $v0, $v0, $v1
+    li $v1, 0x1
+    sll $v0, $v0, $v1
+    addu $a1, $a0, $v0 // Add original skills offset
+
+    lw $v0, 0x1EA0($a3) // Fusion result structure
+    lw $v1, 0x1ec4($a3)
+    sub $v0, $v0, $v1
+    li $v1, 0x1
+    sll $v0, $v0, $v1
+    sub $v1, $s1, 0x74 
+    addiu $v1, $v1, 0x2c
+    addu $a2, $v1, $v0 // Add original skills offset
+
+    lw $a0, 0x1ec4($a3)
+    li $v0, 0x0
+
+    beq $zero, $zero, clearLoopEnd
+    nop
+    clearLoopStart: li $v1, 0xfff
+    sh $v1, 0x0($a1) // Store null skill in view
+    sh $v1, 0x0($a2) // Store null skill in fusion result
+
+    addiu $v0, $v0, 0x1 // Go to next element
+    addiu $a1, $a1, 0x2 
+    addiu $a2, $a2, 0x2
+    clearLoopEnd: bne $v0, $a0, clearLoopStart
+    nop
+
+    j 0x003ddfbc
+    nop
+ASM_END
+
+ASM_START 0x003ddfb0
+    j 0x009D24A0
+    nop
 ASM_END
 
 ASM_START 0x003ddcc0
