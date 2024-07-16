@@ -58,7 +58,17 @@ ASM_START viewHandler
     bne $v0, $zero, x_pressed
     nop
 
-    x_not_pressed: lhu $v0, 0x094e($s6) // Check up press
+    x_not_pressed: lui $s6, 0x007e // Check O press
+    lhu $v0, 0x094e($s6)
+    andi $v0, $v0, 0x20
+    beq $v0, $zero, o_not_pressed
+    nop
+    lhu $v0, 0x0958($s6)
+    andi $v0, $v0, 0x20
+    bne $v0, $zero, o_pressed
+    nop
+    
+    o_not_pressed: lhu $v0, 0x094e($s6) // Check up press
     andi $v0, $v0, 0x1000
     bne $v0, $zero, up_pressed
     nop
@@ -88,6 +98,67 @@ ASM_START viewHandler
     beq $zero, $zero, functionEnd
     nop
 
+    o_pressed: lw $a1, 0x1ECC($s7)
+    li $v1, 0x1
+    sub $a1, $a1, $v1
+    bltz $a1, backFromInheritance
+    nop
+
+    sll $v0, $a1, $v1
+    addiu $v1, $s7, 0x1EB0
+    addu $v0, $v0, $v1 
+    lh $a3, 0x0($v0) // Save cancelled skill for later
+    sh $zero, 0x0($v0) // Reset current fusion result skill
+
+    li $v1, 0x1
+    sll $v0, $a1, $v1
+    lw $v1, 0x1E90($s7)
+    addu $v1, $v1, $v0
+    addiu $a0, $v1, 0x78
+    lw $v0, 0x1EA0($s7)
+    sub $v0, $v0, $s1
+    li $v1, 0x1
+    sll $v0, $v0, $v1
+    addu $v0, $a0, $v0
+    addu $v1, $zero, 0xfff
+    sh $v1, 0x0($v0) // Reset draw result skills
+
+    sw $a1, 0x1ECC($s7) // Update total number of skills selected
+
+
+    daddu $a0,$s0,$zero // $a0 -> inherited linked list information
+    addiu $a1,$s0,0x4 // $a1 -> linked list first element
+    daddu $a2,$s0,$zero // $a2 -> value to find, in this case current_skill
+    lui $a2, 0x0001
+    or $a2, $a2, $a3
+    jal 0x003C4BF0 // Returns linked list element equal to value, if not found returns void linked list element
+    nop
+    beq $v0, $zero, functionEnd // If not found we jump to function end
+    nop
+
+    sh $zero, 0x6($v0) // Clear selected skill flag
+
+    li $v1, 0x0
+    lw $a0, 0x4($a0)
+    beq $zero, $zero, clearForEnd
+    nop
+    clearForStart: bne $v0, $a0, clearForCondition
+    nop
+
+    sw $v1, 0x1EC8($s7) // Bring selection index back to the just cancelled skill
+
+    beq $zero, $zero, functionEnd
+    nop
+
+    clearForCondition: lw $a0, 0x10($a0)
+    addiu $v1, $v1, 0x1
+    clearForEnd: bne $a0, $zero, clearForStart
+    nop
+
+
+    beq $zero, $zero, functionEnd
+    nop
+
     x_pressed: lw $v0, 0x10($s0) // If there are no elements in the linked list we don't continue
     beq $v0, $zero, functionEnd
     nop
@@ -97,12 +168,15 @@ ASM_START viewHandler
     nop
     searchIndexForStart: bne $s5, $s2, searchIndexForCondition // If index not found look next one
     nop
-    lhu $s4, 0x4($s6)
-    daddu $a0,$s0,$zero // a0 -> linked list info
-    addiu $a1,$a0, 0x4 // a1 -> first linked list element address in linked list info
-    daddu $a2, $s6, $zero // a2 -> linked list element to delete
-    jal 0x003C49E0 // Delete element from linked list
+
+    lh $v0, 0x6($s6) 
+    bne $v0, $zero, functionEnd // If skill already selected we don't add this skill
     nop
+
+    li $v0, 0x1
+    sh $v0, 0x6($s6) // Store this element has been already selected
+
+    lh $s4, 0x4($s6) // Load current skill
 
     lw $v0, 0x1ECC($s7)
     li $v1, 0x1
@@ -110,7 +184,6 @@ ASM_START viewHandler
     addiu $v1, $s7, 0x1EB0
     addu $v0, $v0, $v1 // Get current list position to store chosen skill
     sh $s4, 0x0($v0)
-
 
     lw $v0, 0x1ECC($s7) // Update draw view
     li $v1, 0x1
@@ -127,13 +200,10 @@ ASM_START viewHandler
 
     sh $s4, 0x0($v0) // Store value of skill in view
 
-
     lw $v0, 0x1ECC($s7) // Update skill index
     li $v1, 0x1
     addu $v0, $v0, $v1
     sw $v0, 0x1ECC($s7)
-
-    sw $zero, 0x1EC8($s7) // Update linked list index to 0
 
     bne $s1, $v0, functionEnd // If we still need to select more skills we jump to function end
     nop
@@ -161,6 +231,7 @@ ASM_START viewHandler
 
     sw $zero, 0x1EC0($s7) // Clear former skill linked list
     sw $zero, 0x1ECC($s7) // Reset skill list index
+    sw $zero, 0x1EC8($s7) // Reset current selected element from linked list
 
     li $v0, 0x1 // Continue with fusion
     sw $v0, 0x1EA4($s7)
@@ -172,6 +243,7 @@ ASM_START viewHandler
     searchIndexForEnd: bne $s6,$zero,searchIndexForStart
     nop
 
+    backFromInheritance: nop
 
     functionEnd: li $v0, 0x0
 
