@@ -2,7 +2,9 @@ set createInheritanceSkillLinkedList 0x009D1C00
 set viewHandler 0x009D1ED0
 set msgHandler 0x009D2340
 set inheritanceMenuCase 0x009D2400
-set clearChosenSkills 0x009D24A0
+set clearViewHandlerGlobals 0x009D2580
+set force_O_ButtonPress 0x009D2600
+set finalStepsBeforeFusion 0x009D2670
 
 write32 0x007BB8D4 0x009D2400 // Add case 9 for inheritance menu
 
@@ -15,6 +17,33 @@ write32 0x007BB8D4 0x009D2400 // Add case 9 for inheritance menu
 // Number of inheritable skills -> 009D1EC4
 // Selected inheritable skill index -> 009D1EC8
 // Current final inherited skill list index -> 009D1ECC
+
+
+// ARGUMENTS ------------------------|
+// a0 -> linked list info            |
+ASM_START clearViewHandlerGlobals
+    addiu $sp,$sp,-0x10
+    sd $ra,0x0($sp)
+
+    jal 0x003c45f0 // Free linked list
+    nop
+
+    lui $a1, 0x009d
+
+    sw $zero, 0x1EC0($a1) // Clear former skill linked list
+    sw $zero, 0x1ECC($a1) // Reset skill list index
+    sw $zero, 0x1EC8($a1) // Reset current selected element from linked list
+
+    addu $a0, $a1, 0x1EB0
+    daddu $a1, $zero, $zero
+    li $a2, 0x10
+    jal 0x00521408 // memset to 0 the global values we used for next fusion
+    nop
+
+    ld $ra,0x0($sp)
+    addiu $sp,$sp,0x10
+    jr $ra
+ASM_END
 
 ASM_START viewHandler
     addiu $sp,$sp,-0xB0
@@ -29,6 +58,7 @@ ASM_START viewHandler
     sd $s1,0x10($sp)
     sd $s0,0x0($sp)
 
+    move $s5, $a3
     sub $s3, $s1, 0x74 // Save fusion structure
 
     lui $s7, 0x009d
@@ -47,6 +77,9 @@ ASM_START viewHandler
     listAlreadyCreated: lw $s0, 0x1EC0($s7) // New linked list info
     lw $s1, 0x1EC4($s7) // Number of inheritable skills
     lw $s2, 0x1EC8($s7) // Selected inheritable skill index
+
+    bne $s5, $zero, o_pressed // Special case when cancelling final dialogue before fusion
+    nop
 
     lui $s6, 0x007e // Check X press
     lhu $v0, 0x094e($s6)
@@ -68,17 +101,17 @@ ASM_START viewHandler
     bne $v0, $zero, o_pressed
     nop
     
-    o_not_pressed: lhu $v0, 0x094e($s6) // Check up press
-    andi $v0, $v0, 0x1000
-    bne $v0, $zero, up_pressed
+    o_not_pressed: lhu $v0, 0x094e($s6) // Check down press
+    andi $v0, $v0, 0x4000
+    bne $v0, $zero, down_pressed
     nop
 
-    up_not_pressed: lhu $v0, 0x094e($s6) // Check down press
-    andi $v0, $v0, 0x4000
+    down_not_pressed: lhu $v0, 0x094e($s6) // Check up press
+    andi $v0, $v0, 0x1000
     beq $v0, $zero, functionEnd
     nop
 
-    down_pressed: addiu $v0, $zero, 0x1
+    up_pressed: addiu $v0, $zero, 0x1
     sub $s2, $s2, $v0
     bgez $s2, final_jump
     nop
@@ -87,7 +120,7 @@ ASM_START viewHandler
     final_jump: beq $zero, $zero, update_index
     nop
 
-    up_pressed: addiu $v0, $zero, 0x1
+    down_pressed: addiu $v0, $zero, 0x1
     add $s2, $s2, $v0
 
     update_index: daddu $v0, $zero, $s2
@@ -208,31 +241,6 @@ ASM_START viewHandler
     bne $s1, $v0, functionEnd // If we still need to select more skills we jump to function end
     nop
 
-    addu $a1, $s7, 0x1EB0
-    addiu $a0, $s3, 0x2c // Get result persona skills address
-    lw $v0, 0x1EA0($s7)
-    sub $v0, $v0, $s1
-    li $v1, 0x1
-    sll $v0, $v0, $v1
-    addu $a0, $a0, $v0
-    sll $a2, $s1, $v1
-    jal 0x00521250 // memcpy our skill list onto the result persona list
-    nop
-
-    daddu $a0, $s0, $zero 
-    jal 0x003c45f0 // Free linked list
-    nop
-
-    addu $a0, $s7, 0x1EB0
-    daddu $a1, $zero, $zero
-    li $a2, 0x10
-    jal 0x00521408 // memset to 0 the global values we used for next fusion
-    nop
-
-    sw $zero, 0x1EC0($s7) // Clear former skill linked list
-    sw $zero, 0x1ECC($s7) // Reset skill list index
-    sw $zero, 0x1EC8($s7) // Reset current selected element from linked list
-
     li $v0, 0x1 // Continue with fusion
     sw $v0, 0x1EA4($s7)
 
@@ -242,8 +250,16 @@ ASM_START viewHandler
     lw $s6,0x10($s6)
     searchIndexForEnd: bne $s6,$zero,searchIndexForStart
     nop
+    beq $zero, $zero, functionEnd
+    nop
 
-    backFromInheritance: nop
+    backFromInheritance: addiu $v0, $s3, 0x74
+    li $v1, 0x4
+    sw $v1, 0x4($v0)
+
+    addu $a0, $s0, $zero
+    jal 0x009D2580 // Clear globals used for the handler
+    nop
 
     functionEnd: li $v0, 0x0
 
@@ -263,48 +279,47 @@ ASM_START viewHandler
     jr $ra
 ASM_END
 
-ASM_START clearChosenSkills
+ASM_START finalStepsBeforeFusion
     lui $a3, 0x009d
-    lw $v1, 0x1e90($a3)
-    addiu $a0, $v1, 0x78 // Add current skill index
+    lw $a2, 0x1ecc($a3)
+    sub $a1, $s1, 0x74 // Save fusion structure
 
-    lw $v0, 0x1EA0($a3) // Draw result structure
-    lw $v1, 0x1ec4($a3)
-    sub $v0, $v0, $v1
+    addiu $a0, $a1, 0x2c // Get result persona skills address
+    lw $v0, 0x1EA0($a3)
+    sub $v0, $v0, $a2
     li $v1, 0x1
     sll $v0, $v0, $v1
-    addu $a1, $a0, $v0 // Add original skills offset
-
-    lw $v0, 0x1EA0($a3) // Fusion result structure
-    lw $v1, 0x1ec4($a3)
-    sub $v0, $v0, $v1
-    li $v1, 0x1
-    sll $v0, $v0, $v1
-    sub $v1, $s1, 0x74 
-    addiu $v1, $v1, 0x2c
-    addu $a2, $v1, $v0 // Add original skills offset
-
-    lw $a0, 0x1ec4($a3)
-    li $v0, 0x0
-
-    beq $zero, $zero, clearLoopEnd
-    nop
-    clearLoopStart: li $v1, 0xfff
-    sh $v1, 0x0($a1) // Store null skill in view
-    sh $v1, 0x0($a2) // Store null skill in fusion result
-
-    addiu $v0, $v0, 0x1 // Go to next element
-    addiu $a1, $a1, 0x2 
-    addiu $a2, $a2, 0x2
-    clearLoopEnd: bne $v0, $a0, clearLoopStart
+    addu $a0, $a0, $v0
+    sll $a2, $a2, $v1
+    addu $a1, $a3, 0x1EB0
+    jal 0x00521250 // memcpy our skill list onto the result persona list
     nop
 
-    j 0x003ddfbc
+    lw $a0, 0x1EC0($a3) // Clear globals
+    jal 0x009D2580
+    nop
+    
+    j 0x003DDFBC
     nop
 ASM_END
 
-ASM_START 0x003ddfb0
-    j 0x009D24A0
+ASM_START 0x003ddfa0
+    j 0x009D2670 // We clear globals when going to the actual fusion
+    nop
+ASM_END
+
+ASM_START force_O_ButtonPress
+    li $a3, 0x1
+    jal 0x009D1ED0 // We force back button press to erase last skill
+    nop
+    j 0x003DDFBC
+    nop
+ASM_END
+
+ASM_START 0x003ddfa8
+    addiu $v0, $zero, 0x9
+    sw $v0, 0x4($s1)
+    j 0x009D2600
     nop
 ASM_END
 
@@ -320,7 +335,7 @@ ASM_END
 
 ASM_START inheritanceMenuCase
     jal 0x009D1ED0
-    nop
+    li $a3, 0x0
     beq $v0, $zero, inheritanceNotEnded
     nop
     li $v0, 0x7
