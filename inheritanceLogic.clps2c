@@ -223,14 +223,7 @@ ASM_START viewHandler
     beq $zero, $zero, functionEnd
     nop
 
-    x_pressed: li $a0, 0x0
-    li $a1, 0x0
-    li $a2, 0x0
-    li $a3, 0x1
-    jal 0x0010a4e0 // Sound cue for going back
-    nop
-    
-    lw $v0, 0x10($s0) // If there are no elements in the linked list we don't continue
+    x_pressed: lw $v0, 0x10($s0) // If there are no elements in the linked list we don't continue
     beq $v0, $zero, functionEnd
     nop
     lw $s6,0x4($s0)
@@ -241,9 +234,26 @@ ASM_START viewHandler
     nop
 
     lh $v0, 0x6($s6) 
-    bne $v0, $zero, functionEnd // If skill already selected we don't add this skill
+    beq $v0, $zero, newSkill // If skill already selected we don't add this skill
     nop
 
+    li $a0, 0x0
+    li $a1, 0x0
+    li $a2, 0x0
+    li $a3, 0x8
+    jal 0x0010a4e0 // Sound cue when trying to add an already added skill
+    nop
+
+    beq $zero, $zero, functionEnd
+    nop
+
+    newSkill: li $a0, 0x0
+    li $a1, 0x0
+    li $a2, 0x0
+    li $a3, 0x1
+    jal 0x0010a4e0 // Sound cue for adding a skill
+    nop
+    
     li $v0, 0x1
     sh $v0, 0x6($s6) // Store this element has been already selected
 
