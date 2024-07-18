@@ -85,7 +85,8 @@ ASM_START DrawInheritanceUI
     searchForEnd: bne $v0, $s3, searchForStart
     nop
 
-    // Draw skill elements
+
+    // DRAW SKILLS AND SELECTIONS
     li $v0, 0x90
     mtc1 $v0, $f22
     cvt.s.w $f22, $f22
@@ -97,7 +98,6 @@ ASM_START DrawInheritanceUI
     li $s6, 0x0
     li $s7,0x5
     li $s1, 0x82
-
     beq $zero, $zero, skillsDrawEnd
     nop
     skillsDrawStart: li $a0, 0x0
@@ -199,8 +199,11 @@ ASM_START DrawInheritanceUI
     lw $s2, 0x10($s2)
     addiu $s3, $s3, 0x1
     addiu $s6, $s6, 0x1
-
     addiu $s1, $s1, 0x19 // Add space in the text
+
+    beq $s2, $zero, endDraw // If no more elements are present we don't need to draw anything
+    nop
+    
     skillsDrawEnd: bne $s6, $s7, skillsDrawStart
     nop
 

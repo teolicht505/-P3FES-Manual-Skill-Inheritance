@@ -83,7 +83,7 @@ ASM_START viewHandler
     listAlreadyCreated: lw $s0, 0x1EC0($s7) // New linked list info
     lw $s1, 0x1EC4($s7) // Number of inheritable skills
 
-    bne $s5, $zero, o_pressed // Special case when cancelling final dialogue before fusion
+    bne $s5, $zero, o_pressed_no_sound // Special case when cancelling final dialogue before fusion without sound
     nop
 
     li $v0, 0x1
@@ -125,7 +125,14 @@ ASM_START viewHandler
     beq $zero, $zero, functionEnd
     nop
 
-    o_pressed: lw $a1, 0x1ECC($s7)
+    o_pressed: li $a0, 0x0
+    li $a1, 0x0
+    li $a2, 0x0
+    li $a3, 0x2
+    jal 0x0010a4e0 // Sound cue for going back
+    nop
+
+    o_pressed_no_sound: lw $a1, 0x1ECC($s7)
     li $v1, 0x1
     sub $a1, $a1, $v1
     bltz $a1, backFromInheritance
@@ -179,7 +186,7 @@ ASM_START viewHandler
     bgtz $a3, checkLastPage
     nop
 
-    sw $v1, 0x1E94($s7) // Special case for first two elements of first page
+    firstPageIndexing: sw $v1, 0x1E94($s7) // Special case for first two elements of first page or two last if only one page is possible
     sw $zero, 0x1E98($s7)
 
     beq $zero, $zero, functionEnd
@@ -188,6 +195,9 @@ ASM_START viewHandler
     checkLastPage: lw $v0, 0x10($s0)
     li $a0, 0x5
     sub $v0, $v0, $a0 // Get maximum super-index number
+    bltz $v0, firstPageIndexing
+    nop
+
     sub $a0, $v0, $a3
     bltz $a0, lastPageIndexing
     nop
@@ -210,11 +220,17 @@ ASM_START viewHandler
     clearForEnd: bne $a0, $zero, clearForStart
     nop
 
-
     beq $zero, $zero, functionEnd
     nop
 
-    x_pressed: lw $v0, 0x10($s0) // If there are no elements in the linked list we don't continue
+    x_pressed: li $a0, 0x0
+    li $a1, 0x0
+    li $a2, 0x0
+    li $a3, 0x1
+    jal 0x0010a4e0 // Sound cue for going back
+    nop
+    
+    lw $v0, 0x10($s0) // If there are no elements in the linked list we don't continue
     beq $v0, $zero, functionEnd
     nop
     lw $s6,0x4($s0)
