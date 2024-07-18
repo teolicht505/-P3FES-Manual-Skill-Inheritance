@@ -1,12 +1,33 @@
-set DrawInheritanceUI 0x009d0600
+set DrawInheritanceUI 0x009d0300
 
 ASM_START 0x003cb940
     j 0x009d0600
     nop
 ASM_END
 
+ASM_START 0x009d0600
+    jal 0x009d0300
+    nop
+    ld $ra, 0x30($sp)
+    ld $s1, 0x20($sp)
+    j 0x003cb948
+    nop
+ASM_END
+
 
 ASM_START DrawInheritanceUI
+    addiu $sp,$sp,-0xB0
+    sd $ra,0x90($sp)
+    sd $fp,0x80($sp)
+    sd $s7,0x70($sp)
+    sd $s6,0x60($sp)
+    sd $s5,0x50($sp)
+    sd $s4,0x40($sp)
+    sd $s3,0x30($sp)
+    sd $s2,0x20($sp)
+    sd $s1,0x10($sp)
+    sd $s0,0x0($sp)
+
     lui $s4, 0x009d
     lw $v0, 0x1ea8 ($s4)
     beq $v0, $zero, endDraw
@@ -27,11 +48,36 @@ ASM_START DrawInheritanceUI
     mov.s $f15, $f14
     lw $t2, 0xd0($s0)
     jal 0x003ca780
+    nop
+
+    lw $s3, 0x1ec8($s4)
+    lw $s0, 0x1ec0($s4)
+    lw $s0, 0x4($s0)
+    li $v0, 0x0
+
+    beq $zero, $zero, searchSelectedElementForEnd
+    nop
+    searchSelectedElementForStart: lw $s0, 0x10($s0)
+    addiu $v0, $v0, 0x1
+    searchSelectedElementForEnd: bne $v0, $s3, searchSelectedElementForStart
+    nop
+
+    lh $t2, 0x4($s0)
+
+    li $a0, 0x16a // X position
+    li $a1, 0xc3 // Y position
+    addiu $a2,$zero,-0x1
+    addiu $a3,$zero,0x1 // Font scale
+    addiu $t0,$zero,0x6 // Font color
+    addiu $t1,$zero,0x3
+    jal 0x003C7E20 // Print current element description
+    nop
 
     lw $s3, 0x1E98($s4) // Get current super index
     lw $s2, 0x1ec0($s4)
     lw $s2, 0x4($s2)
     li $v0, 0x0
+    
     beq $zero, $zero, searchForEnd
     nop
     searchForStart: lw $s2, 0x10($s2)
@@ -51,6 +97,7 @@ ASM_START DrawInheritanceUI
     li $s6, 0x0
     li $s7,0x5
     li $s1, 0x82
+
     beq $zero, $zero, skillsDrawEnd
     nop
     skillsDrawStart: li $a0, 0x0
@@ -67,7 +114,36 @@ ASM_START DrawInheritanceUI
     jal 0x001159f0
     nop
 
-    addiu $sp, $sp, -0x50
+    lh $v1,0x6($s2)
+    beq $v1, $zero, beginDrawString
+    nop
+
+    li $v0, 0x6
+    mtc1 $v0, $f12
+    cvt.s.w $f12, $f12
+
+    add.s $f12, $f22, $f12
+
+    li $v0, 0x10
+    mtc1 $v0, $f13
+    cvt.s.w $f13, $f13
+
+    add.s $f13, $f23, $f13
+
+    li $a0, 0x0
+    lui $v0,0x0083
+    lw $a1,0x3B90($v0)
+    addiu $a2,$zero,0x19
+    mov.s $f14,$f29
+    addiu $a3, $zero,0x0000
+    addiu $t0,$zero,0x00
+    addiu $t1,$zero,0x00
+    addiu $t2,$zero,0x00
+    jal 0x001159f0
+    nop
+
+
+    beginDrawString: addiu $sp, $sp, -0x50 // Draw skill names
 
     lh $v1, 0x4($s2)
     sll $v0,$v1,0x03
@@ -78,7 +154,7 @@ ASM_START DrawInheritanceUI
     addu $a2,$v0,$v1
     move $a0,$sp
     addiu $a1,$gp,-0x7684
-    jal 0x00523AC8
+    jal 0x00523AC8 // Create string in sp to use in next function
     nop
 
     mtc1 $s5,$f0
@@ -95,10 +171,17 @@ ASM_START DrawInheritanceUI
     mov.s $f12,$f29
     daddu $a2,$s7,$zero
 
-    li $a0, 0x99
-    move $a1, $s1
-    li $a2, 0xffffffff
-    addiu $a3,$zero,0x6
+    li $a0, 0x99 // X position
+    move $a1, $s1 // Y position
+
+    lh $v0, 0x6($s2)
+
+    li $a2, 0xffffffff // Font color
+    beq $v0, $zero, notSelected
+    nop
+    li $a2, 0x77ffcfff
+    
+    notSelected: addiu $a3,$zero,0x6
     addiu $t0,$zero,0x1
     addiu $t1,$sp,0x0
     addiu $t2,$zero,0x10
@@ -108,7 +191,7 @@ ASM_START DrawInheritanceUI
 
     addiu $sp, $sp, 0x50
 
-    li $a0, 0x19 // We add some space between the elements
+    li $a0, 0x19 // We add some space between the elements between iteration
     mtc1 $a0, $f12
     cvt.s.w $f12,$f12
     add.s $f23, $f12, $f23
@@ -121,8 +204,16 @@ ASM_START DrawInheritanceUI
     skillsDrawEnd: bne $s6, $s7, skillsDrawStart
     nop
 
-    endDraw: ld $ra, 0x30($sp)
-    ld $s1, 0x20($sp)
-    j 0x003cb948
-    nop
+    endDraw: ld $ra,0x90($sp)
+    ld $fp,0x80($sp)
+    ld $s7,0x70($sp)
+    ld $s6,0x60($sp)
+    ld $s5,0x50($sp)
+    ld $s4,0x40($sp)
+    ld $s3,0x30($sp)
+    ld $s2,0x20($sp)
+    ld $s1,0x10($sp)
+    ld $s0,0x0($sp)
+    addiu $sp,$sp,0xB0
+    jr $ra
 ASM_END
