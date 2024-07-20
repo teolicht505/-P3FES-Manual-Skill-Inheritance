@@ -1,11 +1,11 @@
 set DrawInheritanceUI 0x009d0300
 
 ASM_START 0x003cb940
-    j 0x009d0600
+    j 0x009D0700
     nop
 ASM_END
 
-ASM_START 0x009d0600
+ASM_START 0x009D0700
     jal 0x009d0300
     nop
     ld $ra, 0x30($sp)
@@ -32,6 +32,9 @@ ASM_START DrawInheritanceUI
     lw $v0, 0x1ea8 ($s4)
     beq $v0, $zero, endDraw
     nop
+
+    move $fp, $s0 // Save spr address for later
+
     // Draw main square
     mtc1 $zero, $f12
     lh $v1, 0x12($s0)
@@ -201,10 +204,36 @@ ASM_START DrawInheritanceUI
     addiu $s6, $s6, 0x1
     addiu $s1, $s1, 0x19 // Add space in the text
 
-    beq $s2, $zero, endDraw // If no more elements are present we don't need to draw anything
+    beq $s2, $zero, drawCurrentSelection // If no more elements are present we continue to draw current selection anything
     nop
     
     skillsDrawEnd: bne $s6, $s7, skillsDrawStart
+    nop
+
+
+    drawCurrentSelection: lw $s3, 0x1E94($s4) // Get current sub index
+    move $s0, $fp
+
+    li $v0, 0x19
+    mult $v0, $s3
+    mflo $v0
+    li $a1, 0x74
+    addu $a1, $a1, $v0
+
+    mtc1 $zero, $f12
+    lh $v1, 0x12($s0)
+    li $v0, 0xffffff00
+    or $a2, $v1, $v0
+    lui $v0, 0x3f80
+    mtc1 $v0, $f14
+    li $a0, 0x87
+    li $a3, 0x4b
+    daddu $t0, $zero, $zero
+    daddu $t1, $zero, $zero
+    mov.s $f13, $f12
+    mov.s $f15, $f14
+    lw $t2, 0xd0($s0)
+    jal 0x003ca780
     nop
 
     endDraw: ld $ra,0x90($sp)
