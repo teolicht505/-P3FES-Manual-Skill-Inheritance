@@ -1,11 +1,11 @@
 set DrawInheritanceUI 0x009d0300
 
 ASM_START 0x003cb940
-    j 0x009D0700
+    j 0x009D0900
     nop
 ASM_END
 
-ASM_START 0x009D0700
+ASM_START 0x009D0900
     jal 0x009d0300
     nop
     ld $ra, 0x30($sp)
@@ -104,6 +104,75 @@ ASM_START DrawInheritanceUI
     searchForStart: lw $s2, 0x10($s2)
     addiu $v0, $v0, 0x1
     searchForEnd: bne $v0, $s3, searchForStart
+    nop
+
+
+    // SLIDER DRAWING
+    li $v0, 0x13c
+    mtc1 $v0, $f21
+    cvt.s.w $f21, $f21
+
+    li $v0, 0x7c
+    mtc1 $v0, $f13
+    cvt.s.w $f13, $f13
+
+    li $v0, 0x73
+    mtc1 $v0, $f20
+    cvt.s.w $f20, $f20
+
+
+    move $a3, $zero
+    move $a0,$zero
+    lw $a1, 0xd0($fp)
+    addiu $a2,$zero,0x4f
+    mov.s $f12,$f21
+    mov.s $f14,$f31
+    jal 0x001159F0 // Draw outter part of slider
+    nop 
+    lw $v0,0x1EC0($s4)
+    lw $v0,0x10($v0) // Get total elements
+    addiu $a0,$v0,-0x5
+    blez $a0,noSliderElements
+    nop 
+    move $v1, $s3 // Get super index
+    addiu $v0,$zero,0x59
+    mult $v1, $v0
+    mflo $v0
+    div $v0,$a0
+    nop 
+    nop 
+    mflo $v0
+    beq $zero,$zero,continueSliderDraw
+    nop 
+    noSliderElements: daddu $v0,$zero,$zero
+    continueSliderDraw: mtc1 $v0,$f0
+    nop 
+    cvt.s.w $f1,$f0
+    lui $v0,0x4208
+    mtc1 $v0,$f0
+    nop 
+    add.s $f0,$f0,$f20
+    add.s $f1,$f0,$f1
+    lui $v0,0x41C0
+    mtc1 $v0,$f0
+    nop 
+    sub.s $f13,$f1,$f0
+    move $a3, $zero
+    move $a0,$zero
+    lw $a1, 0xd0($fp)
+    addiu $a2,$zero,0x4e
+
+    li $v0, 0x13b
+    mtc1 $v0, $f12
+    cvt.s.w $f12, $f12
+
+    lui $v0, 0x3e80
+    mtc1 $v0, $f21
+
+    sub.s $f12, $f12, $f21
+
+    mov.s $f14,$f31
+    jal 0x001159F0 // Draw inner part of slider
     nop
 
 
