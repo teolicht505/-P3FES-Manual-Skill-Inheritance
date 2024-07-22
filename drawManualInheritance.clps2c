@@ -40,11 +40,29 @@ ASM_START DrawInheritanceUI
     lh $v1, 0x12($s0)
     li $v0, 0xffffff00
     or $a2, $v1, $v0
-    lui $v0, 0x4020
+    lui $v0, 0x3f80
     mtc1 $v0, $f14
-    li $a0, 0x88
-    li $a1, 0x70
-    li $a3, 0x5
+    li $a0, 0x146
+    li $a1, 0x6c
+    li $a3, 0x4c
+    daddu $t0, $zero, $zero
+    daddu $t1, $zero, $zero
+    mov.s $f13, $f12
+    mov.s $f15, $f14
+    lw $t2, 0xd0($s0)
+    jal 0x003ca780
+    nop
+
+    // Draw borders of square
+    mtc1 $zero, $f12
+    lh $v1, 0x12($s0)
+    li $v0, 0xffffff00
+    or $a2, $v1, $v0
+    lui $v0, 0x3f80
+    mtc1 $v0, $f14
+    li $a0, 0x65
+    li $a1, 0x6c
+    li $a3, 0x4d
     daddu $t0, $zero, $zero
     daddu $t1, $zero, $zero
     mov.s $f13, $f12
@@ -67,7 +85,7 @@ ASM_START DrawInheritanceUI
 
     lh $t2, 0x4($s0)
 
-    li $a0, 0x16a // X position
+    li $a0, 0x150 // X position
     li $a1, 0xc3 // Y position
     addiu $a2,$zero,-0x1
     addiu $a3,$zero,0x1 // Font scale
@@ -90,7 +108,7 @@ ASM_START DrawInheritanceUI
 
 
     // DRAW SKILLS AND SELECTIONS
-    li $v0, 0x90
+    li $v0, 0x77
     mtc1 $v0, $f22
     cvt.s.w $f22, $f22
 
@@ -174,7 +192,7 @@ ASM_START DrawInheritanceUI
     mov.s $f12,$f29
     daddu $a2,$s7,$zero
 
-    li $a0, 0x99 // X position
+    li $a0, 0x80 // X position
     move $a1, $s1 // Y position
 
     lh $v0, 0x6($s2)
@@ -226,7 +244,7 @@ ASM_START DrawInheritanceUI
     or $a2, $v1, $v0
     lui $v0, 0x3f80
     mtc1 $v0, $f14
-    li $a0, 0x87
+    li $a0, 0x6e
     li $a3, 0x4b
     daddu $t0, $zero, $zero
     daddu $t1, $zero, $zero
