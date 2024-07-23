@@ -40,29 +40,11 @@ ASM_START DrawInheritanceUI
     lh $v1, 0x12($s0)
     li $v0, 0xffffff00
     or $a2, $v1, $v0
-    lui $v0, 0x3f80
+    lui $v0, 0x3F5B
     mtc1 $v0, $f14
-    li $a0, 0x146
-    li $a1, 0x6c
+    li $a0, 0x68
+    li $a1, 0x6b
     li $a3, 0x4c
-    daddu $t0, $zero, $zero
-    daddu $t1, $zero, $zero
-    mov.s $f13, $f12
-    mov.s $f15, $f14
-    lw $t2, 0xd0($s0)
-    jal 0x003ca780
-    nop
-
-    // Draw borders of square
-    mtc1 $zero, $f12
-    lh $v1, 0x12($s0)
-    li $v0, 0xffffff00
-    or $a2, $v1, $v0
-    lui $v0, 0x3f80
-    mtc1 $v0, $f14
-    li $a0, 0x65
-    li $a1, 0x6c
-    li $a3, 0x4d
     daddu $t0, $zero, $zero
     daddu $t1, $zero, $zero
     mov.s $f13, $f12
@@ -124,7 +106,7 @@ ASM_START DrawInheritanceUI
     move $a3, $zero
     move $a0,$zero
     lw $a1, 0xd0($fp)
-    addiu $a2,$zero,0x4f
+    addiu $a2,$zero,0x4e
     mov.s $f12,$f21
     mov.s $f14,$f31
     jal 0x001159F0 // Draw outter part of slider
@@ -160,7 +142,7 @@ ASM_START DrawInheritanceUI
     move $a3, $zero
     move $a0,$zero
     lw $a1, 0xd0($fp)
-    addiu $a2,$zero,0x4e
+    addiu $a2,$zero,0x4d
 
     li $v0, 0x13b
     mtc1 $v0, $f12
