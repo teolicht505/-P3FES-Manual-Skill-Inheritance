@@ -1,11 +1,14 @@
 set createInheritanceSkillLinkedList 0x009D1B50
 set getPersonaSkillNumbers 0x009D26F0
+
 set viewHandler 0x009D1ED0
 set msgHandler 0x009D2340
 set inheritanceMenuCase 0x009D2400
 set clearViewHandlerGlobals 0x009D2580
 set force_O_ButtonPress 0x009D2600
 set finalStepsBeforeFusion 0x009D2670
+
+
 
 write32 0x007BB8D4 0x009D2400 // Add case 9 for inheritance menu
 
@@ -77,9 +80,10 @@ ASM_START viewHandler
         lw $a2, 0xc($s3) // a2 -> number of members of fusion
         jal 0x009D1B50 // Create linked list with all inheritable skills
         nop
-        sw $v0, 0x1EC0($s7)
-        sw $v1, 0x1EC4($s7)
-        sw $a0, 0x1EA0($s7)
+        sw $v0, 0x1EC0($s7) // Store inheritable skills linked list info
+        sw $v1, 0x1EC4($s7) // Store total inherited skill number
+        sw $a0, 0x1EA0($s7) // Store total number of skills result persona has counting inherited skills
+
 
     listAlreadyCreated: lw $s0, 0x1EC0($s7) // New linked list info
     lw $s1, 0x1EC4($s7) // Number of inheritable skills
