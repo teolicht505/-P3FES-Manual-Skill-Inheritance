@@ -1,4 +1,5 @@
-set createInheritanceSkillLinkedList 0x009D1C00
+set createInheritanceSkillLinkedList 0x009D1B50
+set getPersonaSkillNumbers 0x009D26F0
 set viewHandler 0x009D1ED0
 set msgHandler 0x009D2340
 set inheritanceMenuCase 0x009D2400
@@ -35,10 +36,10 @@ ASM_START clearViewHandlerGlobals
     sw $zero, 0x1EC0($a1) // Clear former skill linked list
     sw $zero, 0x1EC8($a1) // Reset current selected element from linked list
     sw $zero, 0x1ECC($a1) // Reset skill list index
-    sw $zero, 0x1EA8($s7) // Reset draw global
+    sw $zero, 0x1EA8($a1) // Reset draw global
 
-    sw $zero, 0x1E94($s7) // Reset sub-index
-    sw $zero, 0x1E98($s7) // Reset super-index
+    sw $zero, 0x1E94($a1) // Reset sub-index
+    sw $zero, 0x1E98($a1) // Reset super-index
 
     addu $a0, $a1, 0x1EB0
     daddu $a1, $zero, $zero
@@ -74,7 +75,7 @@ ASM_START viewHandler
         addiu $a0, $s3, 0x20 // a0 -> persona_result_info in fusion structure
         lw $a1, 0x18($s3) // a1 -> array_of_personas_in_fusion
         lw $a2, 0xc($s3) // a2 -> number of members of fusion
-        jal 0x009D1C00 // Create linked list with all inheritable skills
+        jal 0x009D1B50 // Create linked list with all inheritable skills
         nop
         sw $v0, 0x1EC0($s7)
         sw $v1, 0x1EC4($s7)
@@ -448,6 +449,48 @@ ASM_END
 
 // ARGUMENTS ------------------------|
 // a0 -> persona_result_info         |
+// RETURNS ------------------------- |
+// v0 -> total persona skill number  |
+// v1 -> total inherited skill number|
+ASM_START getPersonaSkillNumbers
+    addiu $sp,$sp,-0x40
+    sd $s2, 0x30($sp)
+    sd $ra,0x20($sp)
+    sd $s1,0x10($sp)
+    sd $s0,0x0($sp)
+    daddu $s0,$a0,$zero
+    daddu $s1,$zero,$zero
+    daddu $v1,$zero,$zero
+    li $a0, 0xfff
+    daddu $s2, $zero, $zero
+    beq $zero,$zero,searchNumberEnd
+    nop 
+    searchNumberStart: sll $v0,$v1,0x01
+    addu $v0,$s0,$v0
+    lhu $v0,0xC($v0)
+    bne $v0, $a0, notInherited
+    nop
+    addiu $s2, $s2, 0x1
+    notInherited: beq $v0,$zero,isNotSkill
+    nop 
+    addiu $s1,$s1,0x1
+    isNotSkill: addiu $v1,$v1,0x1
+    searchNumberEnd: slti $v0,$v1,0x0008
+    bne $v0,$zero,searchNumberStart
+    nop 
+    daddu $v0,$s1,$zero
+    daddu $v1, $s2, $zero
+    ld $s2, 0x30($sp)
+    ld $ra,0x20($sp)
+    ld $s1,0x10($sp)
+    ld $s0,0x0($sp)
+    addiu $sp,$sp,0x40
+    jr $ra
+    nop
+ASM_END
+
+// ARGUMENTS ------------------------|
+// a0 -> persona_result_info         |
 // a1 -> array_of_personas_in_fusion |
 // a2 -> number of members of fusion |
 // RETURNS ------------------------- |
@@ -583,34 +626,15 @@ ASM_START createInheritanceSkillLinkedList
     addiu $s3,$s3,0x1
     personaForLoopCondition: slt $v0,$s3,$s7
     bne $v0,$zero,personaForLoopStart
-
-
-    addiu $a1,$zero,0x8 // Get number of inherited skills result persona will have
-    lui $v1,0x006A
-    addiu $v1,$v1,0x48D0
-    beq $zero,$zero,inheritableSkillNumberForLoopEnd
-    nop 
-    inheritableSkillNumberForLoopStart: sll $a0,$a1,0x01
-    addu $v0,$v1,$a0
-    lb $v0,0x0($v0)
-    slt $at,$s2,$v0
-    bne $at,$zero,inheritableSkillNumberForLoopCondition
-    nop 
-    lui $v0,0x006A
-    addiu $v0,$v0,0x48D1
-    addu $v0,$v0,$a0
-    lb $s0,0x0($v0)
-    beq $zero,$zero,inheritableSkillNumberOut
-    nop 
-    inheritableSkillNumberForLoopCondition: addiu $a1,$a1,-0x1
-    inheritableSkillNumberForLoopEnd: bgez $a1,inheritableSkillNumberForLoopStart
-
-    inheritableSkillNumberOut: daddu $a0, $s4, $zero
-    jal 0x00176A30
     nop
-    daddu $a0, $zero, $v0 // We return total number of skills result persona has
+
+
+    daddu $a0, $s4, $zero // $a0 -> result persona info
+    jal 0x009D26F0 // jal getPersonaSkillNumbers -> Get number of inheritable skills and total number of result persona skills
+    nop
+    
+    daddu $a0, $zero, $v0 // We return total number of skills result persona has counting inherited skills
     daddu $v0, $zero, $s1 // We return inheritable skills linked list info
-    daddu $v1, $zero, $s0 // We return number of skills we can inherit
 
     ld $ra,0x90($sp)
     ld $fp,0x80($sp)
@@ -624,6 +648,7 @@ ASM_START createInheritanceSkillLinkedList
     ld $s0,0x0($sp)
     addiu $sp,$sp,0xB0
     jr $ra
+    nop
 ASM_END
 
 
