@@ -6,7 +6,7 @@ set msgHandler 0x009D2340
 set inheritanceMenuCase 0x009D2400
 set clearViewHandlerGlobals 0x009D2580
 set force_O_ButtonPress 0x009D2600
-set finalStepsBeforeFusion 0x009D2670
+set finalStepsBeforeFusion 0x009D2640
 
 set bubbleSortLinkedList 0x009D0D00
 
@@ -414,6 +414,22 @@ ASM_START finalStepsBeforeFusion
     jal 0x00521250 // memcpy our skill list onto the result persona list
     nop
 
+    lui $a3, 0x009d
+    lw $a2, 0x1ecc($a3)
+    sub $a1, $s1, 0x74 // Save fusion structure
+
+    addiu $a0, $a1, 0x5a // Get result persona inherited skills address (for accidents)
+    lw $v0, 0x1EA0($a3)
+    sub $v0, $v0, $a2
+    li $v1, 0x1
+    sll $v0, $v0, $v1
+    addu $a0, $a0, $v0
+    sll $a2, $a2, $v1
+    addu $a1, $a3, 0x1EB0
+    jal 0x00521250 // memcpy our skill list onto the result persona list
+    nop
+    
+
     lw $a0, 0x1EC0($a3) // Clear globals
     jal 0x009D2580
     nop
@@ -423,7 +439,7 @@ ASM_START finalStepsBeforeFusion
 ASM_END
 
 ASM_START 0x003ddfa0
-    j 0x009D2670 // We clear globals when going to the actual fusion
+    j 0x009D2640 // We clear globals when going to the actual fusion
     nop
 ASM_END
 
