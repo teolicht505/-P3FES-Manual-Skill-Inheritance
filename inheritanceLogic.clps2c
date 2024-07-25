@@ -8,6 +8,7 @@ set clearViewHandlerGlobals 0x009D2580
 set force_O_ButtonPress 0x009D2600
 set finalStepsBeforeFusion 0x009D2670
 
+set bubbleSortLinkedList 0x009D0D00
 
 
 write32 0x007BB8D4 0x009D2400 // Add case 9 for inheritance menu
@@ -24,6 +25,66 @@ write32 0x007BB8D4 0x009D2400 // Add case 9 for inheritance menu
 // Draw inheritance state -> 009D1EA8
 // Current final inherited skill list index -> 009D1ECC
 
+// ARGUMENTS ------------------------|
+// a0 -> linked list info            |
+ASM_START bubbleSortLinkedList
+    addiu $sp, $sp, -0xB0
+    sd $ra, 0x90($sp)
+    sd $fp, 0x80($sp)
+    sd $s7, 0x70($sp)
+    sd $s6, 0x60($sp)
+    sd $s5, 0x50($sp)
+    sd $s4, 0x40($sp)
+    sd $s3, 0x30($sp)
+    sd $s2, 0x20($sp)
+    sd $s1, 0x10($sp)
+    sd $s0, 0x0($sp)
+
+    move $s0, $a0 // Save linked list info
+    move $s2, $zero 
+
+    sortStart: move $s7, $zero // Swap state
+    
+    lw $s1, 0x4($s0) // Get first element
+    
+    sortWhile: lw $s3, 0x10($s1) // Get next element
+    beq $s3, $s2, sortNextIteration // If it is last element, go to next iteration
+    nop
+
+    // Valor ordering procedure
+    lw $v0, 0x4($s1)  // Current element value
+    lw $v1, 0x4($s3)  // Next element value
+    slt $a0, $v1, $v0
+    beq $a0, $zero, sortWhileNextIteration
+    nop
+    sw $v0, 0x4($s3) // Swap values
+    sw $v1, 0x4($s1)
+    li $s7, 1  // Flag a swap has been done
+
+    sortWhileNextIteration: move $s1, $s3 // Move next node
+    bne $s3, $s2, sortWhile // If it's not the end of the list we keep going
+    nop
+
+    sortNextIteration: beq $s7, $zero, sortEnd // If no swaps have been made we end
+    nop
+    
+    b sortStart // If there were swaps we jump to look for more
+    nop
+
+    sortEnd: ld $ra, 0x90($sp)
+    ld $fp, 0x80($sp)
+    ld $s7, 0x70($sp)
+    ld $s6, 0x60($sp)
+    ld $s5, 0x50($sp)
+    ld $s4, 0x40($sp)
+    ld $s3, 0x30($sp)
+    ld $s2, 0x20($sp)
+    ld $s1, 0x10($sp)
+    ld $s0, 0x0($sp)
+    addiu $sp, $sp, 0xB0
+    jr $ra
+    nop
+ASM_END
 
 // ARGUMENTS ------------------------|
 // a0 -> linked list info            |
@@ -83,6 +144,10 @@ ASM_START viewHandler
         sw $v0, 0x1EC0($s7) // Store inheritable skills linked list info
         sw $v1, 0x1EC4($s7) // Store total inherited skill number
         sw $a0, 0x1EA0($s7) // Store total number of skills result persona has counting inherited skills
+
+        move $a0, $v0
+        jal 0x009D0D00 // Sort the linked list
+        nop
 
 
     listAlreadyCreated: lw $s0, 0x1EC0($s7) // New linked list info
