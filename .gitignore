@@ -1,6 +1,4 @@
-
-CLPS2C-Compiler.exe
-CLPS2C-Documentation.txt
-keystone.dll
-regex_convert_code.txt
-update_pnach_to_emu.cmd
+*.exe
+*.txt
+*.dll
+*.cmd

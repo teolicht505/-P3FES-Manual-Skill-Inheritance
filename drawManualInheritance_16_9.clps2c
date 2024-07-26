@@ -1,0 +1,320 @@
+set DrawInheritanceUI 0x009d0300
+
+ASM_START 0x003cb940
+    j 0x009D0900
+    nop
+ASM_END
+
+ASM_START 0x009D0900
+    jal 0x009d0300
+    nop
+    ld $ra, 0x30($sp)
+    ld $s1, 0x20($sp)
+    j 0x003cb948
+    nop
+ASM_END
+
+
+ASM_START DrawInheritanceUI
+    addiu $sp,$sp,-0xB0
+    sd $ra,0x90($sp)
+    sd $fp,0x80($sp)
+    sd $s7,0x70($sp)
+    sd $s6,0x60($sp)
+    sd $s5,0x50($sp)
+    sd $s4,0x40($sp)
+    sd $s3,0x30($sp)
+    sd $s2,0x20($sp)
+    sd $s1,0x10($sp)
+    sd $s0,0x0($sp)
+
+    lui $s4, 0x009d
+    lw $v0, 0x1ea8 ($s4)
+    beq $v0, $zero, endDraw
+    nop
+
+    move $fp, $s0 // Save spr address for later
+
+    // Draw main square
+    mtc1 $zero, $f12
+    lh $v1, 0x12($s0)
+    li $v0, 0xffffff00
+    or $a2, $v1, $v0
+    lui $v0, 0x3F5B
+    mtc1 $v0, $f14
+    li $a0, 0x9c
+    li $a1, 0x6b
+    li $a3, 0x4c
+    daddu $t0, $zero, $zero
+    daddu $t1, $zero, $zero
+    mov.s $f13, $f12
+    mov.s $f15, $f14
+    lw $t2, 0xd0($s0)
+    jal 0x003ca780
+    nop
+
+    lw $s3, 0x1ec8($s4)
+    lw $s0, 0x1ec0($s4)
+    lw $s0, 0x4($s0)
+    li $v0, 0x0
+
+    beq $zero, $zero, searchSelectedElementForEnd
+    nop
+    searchSelectedElementForStart: lw $s0, 0x10($s0)
+    addiu $v0, $v0, 0x1
+    searchSelectedElementForEnd: bne $v0, $s3, searchSelectedElementForStart
+    nop
+
+    lh $t2, 0x4($s0)
+
+    li $a0, 0x185 // X position
+    li $a1, 0xc3 // Y position
+    addiu $a2,$zero,-0x1
+    addiu $a3,$zero,0x1 // Font scale
+    addiu $t0,$zero,0x6 // Font color
+    addiu $t1,$zero,0x3
+    jal 0x003C7E20 // Print current element description
+    nop
+
+    lw $s3, 0x1E98($s4) // Get current super index
+    lw $s2, 0x1ec0($s4)
+    lw $s2, 0x4($s2)
+    li $v0, 0x0
+    
+    beq $zero, $zero, searchForEnd
+    nop
+    searchForStart: lw $s2, 0x10($s2)
+    addiu $v0, $v0, 0x1
+    searchForEnd: bne $v0, $s3, searchForStart
+    nop
+
+
+    // SLIDER DRAWING
+    li $v0, 0x16d
+    mtc1 $v0, $f21
+    cvt.s.w $f21, $f21
+
+    li $v0, 0x7c
+    mtc1 $v0, $f13
+    cvt.s.w $f13, $f13
+
+    li $v0, 0x73
+    mtc1 $v0, $f20
+    cvt.s.w $f20, $f20
+
+
+    move $a3, $zero
+    move $a0,$zero
+    lw $a1, 0xd0($fp)
+    addiu $a2,$zero,0x4e
+    mov.s $f12,$f21
+    mov.s $f14,$f31
+    jal 0x001159F0 // Draw outter part of slider
+    nop 
+    lw $v0,0x1EC0($s4)
+    lw $v0,0x10($v0) // Get total elements
+    addiu $a0,$v0,-0x5
+    blez $a0,noSliderElements
+    nop 
+    move $v1, $s3 // Get super index
+    addiu $v0,$zero,0x59
+    mult $v1, $v0
+    mflo $v0
+    div $v0,$a0
+    nop 
+    nop 
+    mflo $v0
+    beq $zero,$zero,continueSliderDraw
+    nop 
+    noSliderElements: daddu $v0,$zero,$zero
+    continueSliderDraw: mtc1 $v0,$f0
+    nop 
+    cvt.s.w $f1,$f0
+    lui $v0,0x4208
+    mtc1 $v0,$f0
+    nop 
+    add.s $f0,$f0,$f20
+    add.s $f1,$f0,$f1
+    lui $v0,0x41C0
+    mtc1 $v0,$f0
+    nop 
+    sub.s $f13,$f1,$f0
+    move $a3, $zero
+    move $a0,$zero
+    lw $a1, 0xd0($fp)
+    addiu $a2,$zero,0x4d
+
+    li $v0, 0x16c
+    mtc1 $v0, $f12
+    cvt.s.w $f12, $f12
+
+    lui $v0, 0x3e80
+    mtc1 $v0, $f21
+
+    sub.s $f12, $f12, $f21
+
+    mov.s $f14,$f31
+    jal 0x001159F0 // Draw inner part of slider
+    nop
+
+
+    // DRAW SKILLS AND SELECTIONS
+    li $v0, 0xa8
+    mtc1 $v0, $f22
+    cvt.s.w $f22, $f22
+
+    li $v0, 0x7b
+    mtc1 $v0, $f23
+    cvt.s.w $f23, $f23
+
+    li $s6, 0x0
+    li $s7,0x5
+    li $s1, 0x82
+    beq $zero, $zero, skillsDrawEnd
+    nop
+    skillsDrawStart: li $a0, 0x0
+    lui $v0,0x0083
+    lw $a1,0x3B90($v0)
+    addiu $a2,$zero,0x12
+    mov.s $f12,$f22 // X Postion
+    mov.s $f13,$f23 // Y Position
+    mov.s $f14,$f29
+    addiu $a3, $zero,0x0000
+    addiu $t0,$zero,0x00
+    addiu $t1,$zero,0x00
+    addiu $t2,$zero,0x00
+    jal 0x001159f0
+    nop
+
+    lh $v1,0x6($s2)
+    beq $v1, $zero, beginDrawString
+    nop
+
+    li $v0, 0x6
+    mtc1 $v0, $f12
+    cvt.s.w $f12, $f12
+
+    add.s $f12, $f22, $f12
+
+    li $v0, 0x10
+    mtc1 $v0, $f13
+    cvt.s.w $f13, $f13
+
+    add.s $f13, $f23, $f13
+
+    li $a0, 0x0
+    lui $v0,0x0083
+    lw $a1,0x3B90($v0)
+    addiu $a2,$zero,0x19
+    mov.s $f14,$f29
+    addiu $a3, $zero,0x0000
+    addiu $t0,$zero,0x00
+    addiu $t1,$zero,0x00
+    addiu $t2,$zero,0x00
+    jal 0x001159f0
+    nop
+
+
+    beginDrawString: addiu $sp, $sp, -0x50 // Draw skill names
+
+    lh $v1, 0x4($s2)
+    sll $v0,$v1,0x03
+    addu $v0,$v0,$v1
+    sll $v0,$v0,0x01
+    addu $v1,$v0,$v1
+    lw $v0,-0x4804($gp)
+    addu $a2,$v0,$v1
+    move $a0,$sp
+    addiu $a1,$gp,-0x7684
+    jal 0x00523AC8 // Create string in sp to use in next function
+    nop
+
+    mtc1 $s5,$f0
+    nop 
+    cvt.s.w $f0,$f0
+    add.s $f1,$f26,$f0
+    lui $v0,0x4080
+    mtc1 $v0,$f0
+    nop 
+    add.s $f0,$f0,$f1
+    cvt.w.s $f0,$f0
+    mfc1 $a1,$f0
+    daddu $a0,$fp,$zero
+    mov.s $f12,$f29
+    daddu $a2,$s7,$zero
+
+    li $a0, 0xb1 // X position
+    move $a1, $s1 // Y position
+
+    lh $v0, 0x6($s2)
+
+    li $a2, 0xffffffff // Font color
+    beq $v0, $zero, notSelected
+    nop
+    li $a2, 0x77ffcfff
+    
+    notSelected: addiu $a3,$zero,0x6
+    addiu $t0,$zero,0x1
+    addiu $t1,$sp,0x0
+    addiu $t2,$zero,0x10
+    addiu $t3,$zero,0x78
+    jal 0x003B32D0
+    nop
+
+    addiu $sp, $sp, 0x50
+
+    li $a0, 0x19 // We add some space between the elements between iteration
+    mtc1 $a0, $f12
+    cvt.s.w $f12,$f12
+    add.s $f23, $f12, $f23
+
+    lw $s2, 0x10($s2)
+    addiu $s3, $s3, 0x1
+    addiu $s6, $s6, 0x1
+    addiu $s1, $s1, 0x19 // Add space in the text
+
+    beq $s2, $zero, drawCurrentSelection // If no more elements are present we continue to draw current selection anything
+    nop
+    
+    skillsDrawEnd: bne $s6, $s7, skillsDrawStart
+    nop
+
+
+    drawCurrentSelection: lw $s3, 0x1E94($s4) // Get current sub index
+    move $s0, $fp
+
+    li $v0, 0x19
+    mult $v0, $s3
+    mflo $v0
+    li $a1, 0x74
+    addu $a1, $a1, $v0
+
+    mtc1 $zero, $f12
+    lh $v1, 0x12($s0)
+    li $v0, 0xffffff00
+    or $a2, $v1, $v0
+    lui $v0, 0x3f80
+    mtc1 $v0, $f14
+    li $a0, 0x9f // X position
+    li $a3, 0x4b // Y position
+    daddu $t0, $zero, $zero
+    daddu $t1, $zero, $zero
+    mov.s $f13, $f12
+    mov.s $f15, $f14
+    lw $t2, 0xd0($s0)
+    jal 0x003ca780
+    nop
+
+    endDraw: ld $ra,0x90($sp)
+    ld $fp,0x80($sp)
+    ld $s7,0x70($sp)
+    ld $s6,0x60($sp)
+    ld $s5,0x50($sp)
+    ld $s4,0x40($sp)
+    ld $s3,0x30($sp)
+    ld $s2,0x20($sp)
+    ld $s1,0x10($sp)
+    ld $s0,0x0($sp)
+    addiu $sp,$sp,0xB0
+    jr $ra
+ASM_END
