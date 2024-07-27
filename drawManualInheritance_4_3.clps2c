@@ -102,6 +102,7 @@ ASM_START DrawInheritanceUI
     mtc1 $v0, $f20
     cvt.s.w $f20, $f20
 
+    mtc1 $zero, $f31 // Fix slider being drawed under the other ui elements sometimes (z-index related?)
 
     move $a3, $zero
     move $a0,$zero
