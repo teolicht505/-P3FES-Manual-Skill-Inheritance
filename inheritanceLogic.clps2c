@@ -4,6 +4,8 @@ set getPersonaSkillNumbers 0x009D26F0
 set viewHandler 0x009D1ED0
 set msgHandler 0x009D2340
 set inheritanceMenuCase 0x009D2400
+set initManualInheritance 0x009D2480
+
 set clearViewHandlerGlobals 0x009D2580
 set force_O_ButtonPress 0x009D2600
 set finalStepsBeforeFusion 0x009D2640
@@ -133,24 +135,7 @@ ASM_START viewHandler
     sub $s3, $s1, 0x74 // Save fusion structure
 
     lui $s7, 0x009d
-    lw $v0, 0x1EC0($s7) // Load inheritable skills linked list address
-    bne $v0, $zero, listAlreadyCreated
-    nop
-        addiu $a0, $s3, 0x20 // a0 -> persona_result_info in fusion structure
-        lw $a1, 0x18($s3) // a1 -> array_of_personas_in_fusion
-        lw $a2, 0xc($s3) // a2 -> number of members of fusion
-        jal 0x009D1B50 // Create linked list with all inheritable skills
-        nop
-        sw $v0, 0x1EC0($s7) // Store inheritable skills linked list info
-        sw $v1, 0x1EC4($s7) // Store total inherited skill number
-        sw $a0, 0x1EA0($s7) // Store total number of skills result persona has counting inherited skills
-
-        move $a0, $v0
-        jal 0x009D0D00 // Sort the linked list
-        nop
-
-
-    listAlreadyCreated: lw $s0, 0x1EC0($s7) // New linked list info
+    lw $s0, 0x1EC0($s7) // Linked list info
     lw $s1, 0x1EC4($s7) // Number of inheritable skills
 
     bne $s5, $zero, o_pressed_no_sound // Special case when cancelling final dialogue before fusion without sound
@@ -396,6 +381,7 @@ ASM_START viewHandler
     ld $s0,0x0($sp)
     addiu $sp,$sp,0xB0
     jr $ra
+    nop
 ASM_END
 
 ASM_START finalStepsBeforeFusion
@@ -479,11 +465,40 @@ ASM_START inheritanceMenuCase
     nop
 ASM_END
 
+ASM_START initManualInheritance
+    bne $v1,$zero,fusionStart
+    nop
+    sub $v0, $s1, 0x74 // Save fusion structure
+    addiu $a0, $v0, 0x20 // a0 -> persona_result_info in fusion structure
+    lw $a1, 0x18($v0) // a1 -> array_of_personas_in_fusion
+    lw $a2, 0xc($v0) // a2 -> number of members of fusion
+    jal 0x009D1B50 // Create linked list with all inheritable skills
+    nop
+
+    skillsAvailableToSelect: lui $a1, 0x009d
+    sw $v0, 0x1EC0($a1) // Store inheritable skills linked list info
+    sw $v1, 0x1EC4($a1) // Store total inherited skill number
+    sw $a0, 0x1EA0($a1) // Store total number of skills result persona has counting inherited skills
+
+    beq $v1, $zero, fusionStart // If the list has no elements we can't choose any skills, so we skip to fusion directly
+    nop
+
+    move $a0, $v0
+    jal 0x009D0D00 // Sort the linked list
+    nop
+
+    j 0x003DDE94 // Jump to begin skill inheritance processes
+    nop
+
+    fusionStart: j 0x003DDEB4 // Jump to begin fusion (beginFusion tag from 0x003dde84 modification)
+    nop
+ASM_END
+
 ASM_START 0x003dde84
     lui $v0, 0x009D
     lw $v1, 0x1EA4($v0)
-    bne $v1,$zero,beginFusion
-    nop 
+    j 0x009D2480
+    nop
     lw $v0,0x0($s1)
     ori $v0,$v0,0x10
     sw $v0,0x0($s1)
