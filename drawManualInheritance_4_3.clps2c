@@ -90,6 +90,14 @@ ASM_START DrawInheritanceUI
 
 
     // SLIDER DRAWING
+    lw $v0, 0x1ec0($s4)
+    lw $v0, 0x10($v0)
+    li $v1, 0x5
+
+    slt $v0, $v1, $v0
+    beq $v0, $zero, skipSliderDrawing // We don't draw slider if there are 5 elements or less in the list
+    nop
+
     li $v0, 0x118
     mtc1 $v0, $f21
     cvt.s.w $f21, $f21
@@ -160,7 +168,7 @@ ASM_START DrawInheritanceUI
 
 
     // DRAW SKILLS AND SELECTIONS
-    li $v0, 0x53
+    skipSliderDrawing: li $v0, 0x53
     mtc1 $v0, $f22
     cvt.s.w $f22, $f22
 
