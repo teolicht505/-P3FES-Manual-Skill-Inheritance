@@ -2,7 +2,7 @@
 ## Description
 This mod allows players to manually select the skills their personas inherit during fusion, eliminating the need for skill rerolling and adding an extra layer of strategy to the game. Compatible with both 4:3 and 16:9 versions.
 
-![](https://github.com/teolicht505/-P3FES-Manual-Skill-Inheritance/blob/c39b95f1a15be154f52494433f3e6489259296e4/4_3_Manual_Inheritance/Preview.png)
+![](4_3_Manual_Inheritance/Preview.png)
 
 ## Compilation
 This mod is written in a custom language for PS2 cheats called CLPS2C, so the first step to compile this mod is to use the [CLPS2C-Compiler](https://github.com/NiV-L-A/CLPS2C-Compiler/tree/master).
