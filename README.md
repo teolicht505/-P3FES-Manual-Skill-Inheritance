@@ -14,6 +14,7 @@ Special thanks to:
 
 - [NiV-L-A](https://github.com/NiV-L-A) for creating the CLPS2C-Compiler.
 - [alexankitty](https://github.com/alexankitty) for the keystone pull request that fixes the compilation bug and for giving me tips during the mod creation.
+- [RVRZERO](https://github.com/RVRZERO) for making the FES version of the mod and giving me feedback about the mod.
 - The Persona modding community for their continuous support and feedback.
 
 Your contributions and support are greatly appreciated!

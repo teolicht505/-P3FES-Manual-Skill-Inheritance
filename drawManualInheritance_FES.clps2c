@@ -1,0 +1,346 @@
+set DrawInheritanceUI 0x009d0300
+
+ASM_START 0x003cb940
+    j 0x009D0900
+    nop
+ASM_END
+
+ASM_START 0x009D0900
+    jal 0x009d0300
+    nop
+    ld $ra, 0x30($sp)
+    ld $s1, 0x20($sp)
+    j 0x003cb948
+    nop
+ASM_END
+
+
+ASM_START DrawInheritanceUI
+    addiu $sp,$sp,-0xB0
+    sd $ra,0x90($sp)
+    sd $fp,0x80($sp)
+    sd $s7,0x70($sp)
+    sd $s6,0x60($sp)
+    sd $s5,0x50($sp)
+    sd $s4,0x40($sp)
+    sd $s3,0x30($sp)
+    sd $s2,0x20($sp)
+    sd $s1,0x10($sp)
+    sd $s0,0x0($sp)
+
+    lui $s4, 0x009d
+    lw $v0, 0x1ea8 ($s4)
+    beq $v0, $zero, endDraw
+    nop
+
+    move $fp, $s0 // Save address to retrieve the SPR binary addresses later
+
+    // DRAW MAIN UI MENU //
+    mtc1 $zero, $f12
+    lh $v1, 0x12($s0) // Alpha value
+    li $v0, 0xffffff00 // RGB values
+    or $a2, $v1, $v0 // Join RGB and alpha to get RGBA to print
+    lui $v0, 0x3F80 // Image scale, in float format for $f14
+    mtc1 $v0, $f14
+    li $a0, 0x00 // X position
+    li $a1, 0x63 // Y position
+    li $a3, 0x4c // SPR index number to print
+    daddu $t0, $zero, $zero
+    daddu $t1, $zero, $zero
+    mov.s $f13, $f12
+    mov.s $f15, $f14
+    lw $t2, 0xd0($s0) // Get SPR binary file address in memory
+    jal 0x003ca780 // Print SPR
+    nop
+    // END DRAW MAIN UI MENU //
+
+    lw $s3, 0x1ec8($s4)
+    lw $s0, 0x1ec0($s4)
+    lw $s0, 0x4($s0)
+    li $v0, 0x0
+
+    beq $zero, $zero, searchSelectedElementForEnd
+    nop
+    searchSelectedElementForStart: lw $s0, 0x10($s0)
+    addiu $v0, $v0, 0x1
+    searchSelectedElementForEnd: bne $v0, $s3, searchSelectedElementForStart
+    nop
+
+    // DRAW CURRENT SELECTED SKILL DESCRIPTION //
+    lh $t2, 0x4($s0) // Get current selected skill id
+    li $a0, 0x0e // X position
+    li $a1, 0x94 // Y position
+    addiu $a2,$zero,-0x1 // Font RGBA
+    addiu $a3,$zero,0x2 // Font scale
+    addiu $t0,$zero,0x6 // Font preset color
+    addiu $t1,$zero,0x3
+    jal 0x003C7E20 // Print current element description
+    nop
+    // END DRAW CURRENT SELECTED SKILL DESCRIPTION //
+
+    lw $s3, 0x1E98($s4) // Get current super index
+    lw $s2, 0x1ec0($s4)
+    lw $s2, 0x4($s2)
+    li $v0, 0x0
+    
+    beq $zero, $zero, searchForEnd
+    nop
+    searchForStart: lw $s2, 0x10($s2)
+    addiu $v0, $v0, 0x1
+    searchForEnd: bne $v0, $s3, searchForStart
+    nop
+
+
+    // DRAW SLIDER //
+    lw $v0, 0x1ec0($s4)
+    lw $v0, 0x10($v0)
+    li $v1, 0x5
+
+    slt $v0, $v1, $v0
+    beq $v0, $zero, skipSliderDrawing // We don't draw slider if there are 5 elements or less in the list
+    nop
+
+    li $v0, 0x1FF // X Position outter part, in float for $f21
+    mtc1 $v0, $f21
+    cvt.s.w $f21, $f21
+
+    li $v0, 0x75 // Y Position outter part, in float for $f13
+    mtc1 $v0, $f13
+    cvt.s.w $f13, $f13
+
+    li $v0, 0x6C // Y position initial inner part, in float for $f20
+    mtc1 $v0, $f20
+    cvt.s.w $f20, $f20
+
+    mtc1 $zero, $f31 // Fix slider being drawed under the other ui elements sometimes (z-index related?)
+
+    move $a3, $zero
+    move $a0,$zero
+    lw $a1, 0xd0($fp) // Get SPR binary file address in memory
+    addiu $a2,$zero,0x4e // SPR index number to print
+    mov.s $f12,$f21
+    mov.s $f14,$f31
+    jal 0x001159F0 // Draw outter part of slider
+    nop 
+
+    lw $v0,0x1EC0($s4) // Get linked list info address
+    lw $v0,0x10($v0) // Get total elements of linked list
+    addiu $a0,$v0,-0x5
+    blez $a0,noSliderElements
+    nop 
+    move $v1, $s3 // Get super index
+    addiu $v0,$zero,0x59
+    mult $v1, $v0
+    mflo $v0
+    div $v0,$a0
+    nop 
+    nop 
+    mflo $v0
+    beq $zero,$zero,continueSliderDraw
+    nop 
+    noSliderElements: daddu $v0,$zero,$zero
+    continueSliderDraw: mtc1 $v0,$f0
+    nop
+
+    // Calculate new Y position for current selected element 
+    // depending on the number of elements of inherited skill list
+    cvt.s.w $f1,$f0
+    lui $v0,0x4208
+    mtc1 $v0,$f0
+    nop
+    add.s $f0,$f0,$f20
+    add.s $f1,$f0,$f1
+    lui $v0,0x41C0
+    mtc1 $v0,$f0
+    nop 
+    sub.s $f13,$f1,$f0 // Final Y position inner part
+    move $a3, $zero
+    move $a0,$zero
+    lw $a1, 0xd0($fp) // Get SPR binary file address in memory
+    addiu $a2,$zero,0x4d // SPR index number to print
+
+    li $v0, 0x1FE // Initial X position inner part
+    mtc1 $v0, $f12
+    cvt.s.w $f12, $f12
+
+    lui $v0, 0x3e80 // Little adjustment to fit inner part inside the outter part
+    mtc1 $v0, $f21
+
+    sub.s $f12, $f12, $f21 // Final X position inner part -> initial + adjustment
+
+    mov.s $f14,$f31
+    jal 0x001159F0 // Draw inner part of slider
+    nop
+    // END DRAW SLIDER //
+
+
+    //// DRAW SKILL LIST ////
+    skipSliderDrawing: li $v0, 0x13C // Skill container initial X position, in float for $f22
+    mtc1 $v0, $f22
+    cvt.s.w $f22, $f22
+
+    li $v0, 0x74 // Skill container initial Y position, in float for $f23
+    mtc1 $v0, $f23
+    cvt.s.w $f23, $f23
+
+    li $s6, 0x0
+    li $s7,0x5
+    li $s1, 0x7B // Y position for SKILL NAME STRINGS
+    beq $zero, $zero, skillsDrawEnd
+    nop
+
+    // DRAW SKILL CONTAINER //
+    skillsDrawStart: li $a0, 0x0
+    lui $v0,0x0083
+    lw $a1,0x3B90($v0)
+    addiu $a2,$zero,0x12
+    mov.s $f12,$f22 // X Postion
+    mov.s $f13,$f23 // Y Position
+    mov.s $f14,$f29
+    addiu $a3, $zero,0x0000
+    addiu $t0,$zero,0x00
+    addiu $t1,$zero,0x00
+    addiu $t2,$zero,0x00
+    jal 0x001159f0
+    nop
+    // END DRAW SKILL CONTAINER //
+
+    lh $v1,0x6($s2) // Check wether current element has already been selected
+    beq $v1, $zero, beginDrawString
+    nop
+
+    // DRAW GREEN OUTLINE SELECTED ELEMENT IN LIST //
+    li $v0, 0x6 // X position offset, in float for $f12
+    mtc1 $v0, $f12
+    cvt.s.w $f12, $f12
+
+    add.s $f12, $f22, $f12 // Final X position -> current element X + offset X
+
+    li $v0, 0x10 // Y position offset, in float for $f13
+    mtc1 $v0, $f13
+    cvt.s.w $f13, $f13
+
+    add.s $f13, $f23, $f13 // Final Y position -> current element Y + offset Y
+
+    li $a0, 0x0
+    lui $v0,0x0083
+    lw $a1,0x3B90($v0)
+    addiu $a2,$zero,0x19
+    mov.s $f14,$f29
+    addiu $a3, $zero,0x0000
+    addiu $t0,$zero,0x00
+    addiu $t1,$zero,0x00
+    addiu $t2,$zero,0x00
+    jal 0x001159f0
+    nop
+    // END DRAW GREEN OUTLINE SELECTED ELEMENT IN LIST //
+
+    // PRINT SKILL NAME STRINGS //
+    beginDrawString: addiu $sp, $sp, -0x50
+
+    lh $v1, 0x4($s2)
+    sll $v0,$v1,0x03
+    addu $v0,$v0,$v1
+    sll $v0,$v0,0x01
+    addu $v1,$v0,$v1
+    lw $v0,-0x4804($gp)
+    addu $a2,$v0,$v1
+    move $a0,$sp
+    addiu $a1,$gp,-0x7684
+    jal 0x00523AC8 // Create string in sp to use in next function
+    nop
+
+    mtc1 $s5,$f0
+    nop 
+    cvt.s.w $f0,$f0
+    add.s $f1,$f26,$f0
+    lui $v0,0x4080
+    mtc1 $v0,$f0
+    nop 
+    add.s $f0,$f0,$f1
+    cvt.w.s $f0,$f0
+    mfc1 $a1,$f0
+    daddu $a0,$fp,$zero
+    mov.s $f12,$f29
+    daddu $a2,$s7,$zero
+
+    li $a0, 0x14B // X position
+    move $a1, $s1 // Y position
+
+    lh $v0, 0x6($s2)
+
+    li $a2, 0xffffffff // Font RGBA when element has not been already selected (white)
+    beq $v0, $zero, notSelected
+    nop
+    li $a2, 0x77ffcfff // Font RGBA when element has been already selected (green)
+    
+    notSelected: addiu $a3,$zero,0x6 // Font preset color
+    addiu $t0,$zero,0x1
+    addiu $t1,$sp,0x0
+    addiu $t2,$zero,0x10
+    addiu $t3,$zero,0x78
+    jal 0x003B32D0 // Print string
+    nop
+
+    addiu $sp, $sp, 0x50
+    // END PRINT SKILL NAME STRINGS //
+
+    // We add some space between the 5 elements between iteration
+    li $a0, 0x19 // Offset for skill container
+    mtc1 $a0, $f12
+    cvt.s.w $f12,$f12
+    add.s $f23, $f12, $f23
+
+    lw $s2, 0x10($s2) // Get next skill to print from linked list
+    addiu $s3, $s3, 0x1
+    addiu $s6, $s6, 0x1
+    addiu $s1, $s1, 0x19 // Offset for skill strings positions
+
+    beq $s2, $zero, drawCurrentSelection // If no more elements are present we continue to draw current selection anything
+    nop
+    
+    skillsDrawEnd: bne $s6, $s7, skillsDrawStart
+    nop
+    //// END DRAW SKILL LIST ////
+
+    // DRAW CURRENT SELECTION CURSOR //
+    drawCurrentSelection: lw $s3, 0x1E94($s4) // Get current sub index
+    move $s0, $fp
+
+    li $v0, 0x19 // Y offset for every element of the skill list
+    mult $v0, $s3
+    mflo $v0
+
+    li $a1, 0x6D // Initial Y position
+    addu $a1, $a1, $v0 // Y position -> initial + offset of current selected element
+
+    mtc1 $zero, $f12
+    lh $v1, 0x12($s0) // Alpha value
+    li $v0, 0xffffff00 // RGB values
+    or $a2, $v1, $v0 // Join RGB and alpha to get RGBA to print
+    lui $v0, 0x3f80 // Image scale, in float format for $f14
+    mtc1 $v0, $f14
+    li $a0, 0x133 // X position
+    li $a3, 0x4b // SPR index number to print
+    daddu $t0, $zero, $zero
+    daddu $t1, $zero, $zero
+    mov.s $f13, $f12
+    mov.s $f15, $f14
+    lw $t2, 0xd0($s0) // Get SPR binary file address in memory
+    jal 0x003ca780 // Print SPR
+    nop
+    // END DRAW CURRENT SELECTION CURSOR //
+
+    endDraw: ld $ra,0x90($sp)
+    ld $fp,0x80($sp)
+    ld $s7,0x70($sp)
+    ld $s6,0x60($sp)
+    ld $s5,0x50($sp)
+    ld $s4,0x40($sp)
+    ld $s3,0x30($sp)
+    ld $s2,0x20($sp)
+    ld $s1,0x10($sp)
+    ld $s0,0x0($sp)
+    addiu $sp,$sp,0xB0
+    jr $ra
+ASM_END

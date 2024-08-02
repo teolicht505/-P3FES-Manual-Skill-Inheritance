@@ -1,0 +1,2 @@
+include "inheritanceLogic.clps2c"
+include "drawManualInheritance_FES.clps2c"
