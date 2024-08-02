@@ -16,17 +16,32 @@ ASM_END
 
 
 ASM_START DrawInheritanceUI
-    addiu $sp,$sp,-0xB0
-    sd $ra,0x90($sp)
-    sd $fp,0x80($sp)
-    sd $s7,0x70($sp)
-    sd $s6,0x60($sp)
-    sd $s5,0x50($sp)
-    sd $s4,0x40($sp)
-    sd $s3,0x30($sp)
-    sd $s2,0x20($sp)
-    sd $s1,0x10($sp)
-    sd $s0,0x0($sp)
+    addiu $sp, $sp, -0xe0
+
+    sd $ra, 0x90($sp)
+    sd $fp, 0x80($sp)
+    sd $s7, 0x70($sp)
+    sd $s6, 0x60($sp)
+    sd $s5, 0x50($sp)
+    sd $s4, 0x40($sp)
+    sd $s3, 0x30($sp)
+    sd $s2, 0x20($sp)
+    sd $s1, 0x10($sp)
+    sd $s0, 0x0($sp)
+
+    swc1 $f0,  0xA0($sp)
+    swc1 $f1,  0xA4($sp)
+    swc1 $f12, 0xA8($sp)
+    swc1 $f13, 0xAC($sp)
+    swc1 $f14, 0xB0($sp)
+    swc1 $f15, 0xB4($sp)
+    swc1 $f20, 0xB8($sp)
+    swc1 $f21, 0xBC($sp)
+    swc1 $f22, 0xC0($sp)
+    swc1 $f23, 0xC4($sp)
+    swc1 $f26, 0xC8($sp)
+    swc1 $f29, 0xCC($sp)
+    swc1 $f31, 0xD0($sp)
 
     lui $s4, 0x009d
     lw $v0, 0x1ea8 ($s4)
@@ -331,16 +346,31 @@ ASM_START DrawInheritanceUI
     nop
     // END DRAW CURRENT SELECTION CURSOR //
 
-    endDraw: ld $ra,0x90($sp)
-    ld $fp,0x80($sp)
-    ld $s7,0x70($sp)
-    ld $s6,0x60($sp)
-    ld $s5,0x50($sp)
-    ld $s4,0x40($sp)
-    ld $s3,0x30($sp)
-    ld $s2,0x20($sp)
-    ld $s1,0x10($sp)
-    ld $s0,0x0($sp)
-    addiu $sp,$sp,0xB0
+    endDraw: lwc1 $f0,  0xA0($sp)
+    lwc1 $f1,  0xA4($sp)
+    lwc1 $f12, 0xA8($sp)
+    lwc1 $f13, 0xAC($sp)
+    lwc1 $f14, 0xB0($sp)
+    lwc1 $f15, 0xB4($sp)
+    lwc1 $f20, 0xB8($sp)
+    lwc1 $f21, 0xBC($sp)
+    lwc1 $f22, 0xC0($sp)
+    lwc1 $f23, 0xC4($sp)
+    lwc1 $f26, 0xC8($sp)
+    lwc1 $f29, 0xCC($sp)
+    lwc1 $f31, 0xD0($sp)
+
+    ld $ra, 0x90($sp)
+    ld $fp, 0x80($sp)
+    ld $s7, 0x70($sp)
+    ld $s6, 0x60($sp)
+    ld $s5, 0x50($sp)
+    ld $s4, 0x40($sp)
+    ld $s3, 0x30($sp)
+    ld $s2, 0x20($sp)
+    ld $s1, 0x10($sp)
+    ld $s0, 0x0($sp)
+
+    addiu $sp, $sp, 0xe0
     jr $ra
 ASM_END
