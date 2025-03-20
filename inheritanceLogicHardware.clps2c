@@ -1,0 +1,782 @@
+set createInheritanceSkillLinkedList 0x003737c4
+set getPersonaSkillNumbers 0x003739e8
+
+set viewHandler 0x00373A70
+set msgHandler 0x00373DBC
+set inheritanceMenuCase 0x00373DF4
+set initManualInheritance 0x00373E14
+
+set clearViewHandlerGlobals 0x00373E68
+set force_O_ButtonPress 0x00373EB8
+set finalStepsBeforeFusion 0x00373ECC
+
+set bubbleSortLinkedList 0x00373F48
+
+
+write32 0x007BB8D4 0x00373DF4 // Add case 9 for inheritance menu
+
+write32 00373700 0x00000000 // Clear debug data for hardware (Make sure to use Ps2 Patch Engine)
+write32 00373704 0x00000000
+write32 00373708 0x00000000
+write32 0037370C 0x00000000
+write32 00373710 0x00000000
+write32 00373714 0x00000000
+write32 00373718 0x00000000
+write32 0037371C 0x00000000
+write32 00373720 0x00000000
+write32 00373724 0x00000000
+write32 00373728 0x00000000
+write32 0037372C 0x00000000
+write32 00373730 0x00000000
+write32 00373734 0x00000000
+write32 00373738 0x00000000
+write32 0037373C 0x00000000
+
+// View persona draw structure -> 00373700
+// Selected inheritable skill sub-index -> 00373704
+// Selected inheritable skill super-index -> 00373708
+// Result persona original skill number -> 00373710
+// Inheritance ended var -> 00373714
+// Draw inheritance state -> 00373718
+// Choosen inherited skills list -> 00373720
+// Inheritance skills linked list -> 00373730
+// Number of inheritable skills -> 00373734
+// Current final inherited skill list index -> 0037373C
+
+// ARGUMENTS ------------------------|
+// a0 -> linked list info            |
+ASM_START bubbleSortLinkedList
+    addiu $sp, $sp, -0xB0
+    sd $ra, 0x90($sp)
+    sd $fp, 0x80($sp)
+    sd $s7, 0x70($sp)
+    sd $s6, 0x60($sp)
+    sd $s5, 0x50($sp)
+    sd $s4, 0x40($sp)
+    sd $s3, 0x30($sp)
+    sd $s2, 0x20($sp)
+    sd $s1, 0x10($sp)
+    sd $s0, 0x0($sp)
+
+    move $s0, $a0 // Save linked list info
+    move $s2, $zero 
+
+    sortStart: move $s7, $zero // Swap state
+    
+    lw $s1, 0x4($s0) // Get first element
+    
+    sortWhile: lw $s3, 0x10($s1) // Get next element
+    beq $s3, $s2, sortNextIteration // If it is last element, go to next iteration
+    nop
+
+    // Valor ordering procedure
+    lw $v0, 0x4($s1)  // Current element value
+    lw $v1, 0x4($s3)  // Next element value
+    slt $a0, $v1, $v0
+    beq $a0, $zero, sortWhileNextIteration
+    nop
+    sw $v0, 0x4($s3) // Swap values
+    sw $v1, 0x4($s1)
+    li $s7, 1  // Flag a swap has been done
+
+    sortWhileNextIteration: move $s1, $s3 // Move next node
+    bne $s3, $s2, sortWhile // If it's not the end of the list we keep going
+    nop
+
+    sortNextIteration: beq $s7, $zero, sortEnd // If no swaps have been made we end
+    nop
+    
+    b sortStart // If there were swaps we jump to look for more
+    nop
+
+    sortEnd: ld $ra, 0x90($sp)
+    ld $fp, 0x80($sp)
+    ld $s7, 0x70($sp)
+    ld $s6, 0x60($sp)
+    ld $s5, 0x50($sp)
+    ld $s4, 0x40($sp)
+    ld $s3, 0x30($sp)
+    ld $s2, 0x20($sp)
+    ld $s1, 0x10($sp)
+    ld $s0, 0x0($sp)
+    addiu $sp, $sp, 0xB0
+    jr $ra
+    nop
+ASM_END
+
+// ARGUMENTS ------------------------|
+// a0 -> linked list info            |
+ASM_START clearViewHandlerGlobals
+    addiu $sp,$sp,-0x10
+    sd $ra,0x0($sp)
+
+    jal 0x003c45f0 // Free linked list
+    nop
+
+    lui $a1, 0x0037
+
+    sw $zero, 0x3730($a1) // Clear former skill linked list
+    sw $zero, 0x1EC8($a1) // Reset current selected element from linked list
+    sw $zero, 0x373C($a1) // Reset skill list index
+    sw $zero, 0x3718($a1) // Reset draw global
+
+    sw $zero, 0x3704($a1) // Reset sub-index
+    sw $zero, 0x3708($a1) // Reset super-index
+
+    addu $a0, $a1, 0x3720
+    daddu $a1, $zero, $zero
+    li $a2, 0x10
+    jal 0x00521408 // memset to 0 the global values we used for next fusion
+    nop
+
+    ld $ra,0x0($sp)
+    addiu $sp,$sp,0x10
+    jr $ra
+ASM_END
+
+ASM_START viewHandler
+    addiu $sp,$sp,-0xB0
+    sd $ra,0x90($sp)
+    sd $fp,0x80($sp)
+    sd $s7,0x70($sp)
+    sd $s6,0x60($sp)
+    sd $s5,0x50($sp)
+    sd $s4,0x40($sp)
+    sd $s3,0x30($sp)
+    sd $s2,0x20($sp)
+    sd $s1,0x10($sp)
+    sd $s0,0x0($sp)
+
+    move $s5, $a3
+    sub $s3, $s1, 0x74 // Save fusion structure
+
+    lui $s7, 0x0037
+    lw $s0, 0x3730($s7) // Linked list info
+    lw $s1, 0x3734($s7) // Number of inheritable skills
+
+    bne $s5, $zero, o_pressed_no_sound // Special case when cancelling final dialogue before fusion without sound
+    nop
+
+    li $v0, 0x1
+    sw $v0, 0x3718($s7)
+
+    lw $a0, 0x10($s0) // List total elements
+    li $a1, 0x5 // Page elements
+    addiu $a2, $s7, 0x3708 // Current super-index
+    addiu $a3, $s7, 0x3704 // Current sub-index
+    jal 0x0011abd0 // Index handler for multi-page selections
+    nop
+
+    lw $v0, 0x3708($s7)
+    lw $v1, 0x3704($s7)
+    addu $s2, $v0, $v1 // Calculate final selected index
+    sw $s2, 0x1ec8($s7) // Store current index so we can retrieve it easily
+
+
+    lui $s6, 0x007e // Check X press
+    lhu $v0, 0x094e($s6)
+    andi $v0, $v0, 0x40
+    beq $v0, $zero, x_not_pressed
+    nop
+    lhu $v0, 0x0958($s6)
+    andi $v0, $v0, 0x40
+    bne $v0, $zero, x_pressed
+    nop
+
+    x_not_pressed: lui $s6, 0x007e // Check O press
+    lhu $v0, 0x094e($s6)
+    andi $v0, $v0, 0x20
+    beq $v0, $zero, functionEnd
+    nop
+    lhu $v0, 0x0958($s6)
+    andi $v0, $v0, 0x20
+    bne $v0, $zero, o_pressed
+    nop
+    
+    beq $zero, $zero, functionEnd
+    nop
+
+    o_pressed: li $a0, 0x0
+    li $a1, 0x0
+    li $a2, 0x0
+    li $a3, 0x2
+    jal 0x0010a4e0 // Sound cue for going back
+    nop
+
+    o_pressed_no_sound: lw $a1, 0x373C($s7)
+    li $v1, 0x1
+    sub $a1, $a1, $v1
+    bltz $a1, backFromInheritance
+    nop
+
+    sll $v0, $a1, $v1
+    addiu $v1, $s7, 0x3720
+    addu $v0, $v0, $v1 
+    lh $a3, 0x0($v0) // Save cancelled skill for later
+    sh $zero, 0x0($v0) // Reset current fusion result skill
+
+    li $v1, 0x1
+    sll $v0, $a1, $v1
+    lw $v1, 0x3700($s7)
+    addu $v1, $v1, $v0
+    addiu $a0, $v1, 0x78
+    lw $v0, 0x3710($s7)
+    sub $v0, $v0, $s1
+    li $v1, 0x1
+    sll $v0, $v0, $v1
+    addu $v0, $a0, $v0
+    addu $v1, $zero, 0xfff
+    sh $v1, 0x0($v0) // Reset draw result skills
+
+    sw $a1, 0x373C($s7) // Update total number of skills selected
+
+
+    daddu $a0,$s0,$zero // $a0 -> inherited linked list information
+    addiu $a1,$s0,0x4 // $a1 -> linked list first element
+    daddu $a2,$s0,$zero // $a2 -> value to find, in this case current_skill
+    lui $a2, 0x0001
+    or $a2, $a2, $a3
+    jal 0x003C4BF0 // Returns linked list element equal to value, if not found returns void linked list element
+    nop
+    beq $v0, $zero, functionEnd // If not found we jump to function end
+    nop
+
+    sh $zero, 0x6($v0) // Clear selected skill flag
+
+    li $v1, 0x0
+    lw $a0, 0x4($a0)
+    beq $zero, $zero, clearForEnd
+    nop
+    clearForStart: bne $v0, $a0, clearForCondition
+    nop
+
+    // We transform normal index to splitted one
+    li $a2, 0x2
+    sub $a3, $v1, $a2 // Get super-index
+
+    bgtz $a3, checkLastPage
+    nop
+
+    firstPageIndexing: sw $v1, 0x3704($s7) // Special case for first two elements of first page or two last if only one page is possible
+    sw $zero, 0x3708($s7)
+
+    beq $zero, $zero, functionEnd
+    nop
+
+    checkLastPage: lw $v0, 0x10($s0)
+    li $a0, 0x5
+    sub $v0, $v0, $a0 // Get maximum super-index number
+    bltz $v0, firstPageIndexing
+    nop
+
+    sub $a0, $v0, $a3
+    bltz $a0, lastPageIndexing
+    nop
+    
+    sw $a2, 0x3704($s7) // Bring selection index back to the just cancelled skill
+    sw $a3, 0x3708($s7)
+
+    beq $zero, $zero, functionEnd
+    nop
+
+    lastPageIndexing: sub $a2, $v1, $v0
+    sw $a2, 0x3704($s7) // Special case for last two elements of last page
+    sw $v0, 0x3708($s7)
+
+    beq $zero, $zero, functionEnd
+    nop
+
+    clearForCondition: lw $a0, 0x10($a0)
+    addiu $v1, $v1, 0x1
+    clearForEnd: bne $a0, $zero, clearForStart
+    nop
+
+    beq $zero, $zero, functionEnd
+    nop
+
+    x_pressed: lw $v0, 0x10($s0) // If there are no elements in the linked list we don't continue
+    beq $v0, $zero, functionEnd
+    nop
+    lw $s6,0x4($s0)
+    li $s5, 0x0
+    beq $zero,$zero,searchIndexForEnd // For loop to find current index element
+    nop
+    searchIndexForStart: bne $s5, $s2, searchIndexForCondition // If index not found look next one
+    nop
+
+    lh $v0, 0x6($s6) 
+    beq $v0, $zero, newSkill // If skill already selected we don't add this skill
+    nop
+
+    li $a0, 0x0
+    li $a1, 0x0
+    li $a2, 0x0
+    li $a3, 0x8
+    jal 0x0010a4e0 // Sound cue when trying to add an already added skill
+    nop
+
+    beq $zero, $zero, functionEnd
+    nop
+
+    newSkill: li $a0, 0x0
+    li $a1, 0x0
+    li $a2, 0x0
+    li $a3, 0x1
+    jal 0x0010a4e0 // Sound cue for adding a skill
+    nop
+    
+    li $v0, 0x1
+    sh $v0, 0x6($s6) // Store this element has been already selected
+
+    lh $s4, 0x4($s6) // Load current skill
+
+    lw $v0, 0x373C($s7)
+    li $v1, 0x1
+    sll $v0, $v0, $v1
+    addiu $v1, $s7, 0x3720
+    addu $v0, $v0, $v1 // Get current list position to store chosen skill
+    sh $s4, 0x0($v0)
+
+    lw $v0, 0x373C($s7) // Update draw view
+    li $v1, 0x1
+    sll $v0, $v0, $v1
+    lw $v1, 0x3700($s7)
+    addu $v1, $v1, $v0
+    addiu $a0, $v1, 0x78 // Add current skill index
+
+    lw $v0, 0x3710($s7)
+    sub $v0, $v0, $s1
+    li $v1, 0x1
+    sll $v0, $v0, $v1
+    addu $v0, $a0, $v0 // Add original skills offset
+
+    sh $s4, 0x0($v0) // Store value of skill in view
+
+    lw $v0, 0x373C($s7) // Update skill index
+    li $v1, 0x1
+    addu $v0, $v0, $v1
+    sw $v0, 0x373C($s7)
+
+    bne $s1, $v0, functionEnd // If we still need to select more skills we jump to function end
+    nop
+
+    li $v0, 0x1 // Continue with fusion
+    sw $v0, 0x3714($s7)
+    sw $zero, 0x3718($s7)
+
+    beq $zero,$zero,proceedToFusion
+    nop 
+    searchIndexForCondition: addiu $s5,$s5,0x1
+    lw $s6,0x10($s6)
+    searchIndexForEnd: bne $s6,$zero,searchIndexForStart
+    nop
+    beq $zero, $zero, functionEnd
+    nop
+
+    backFromInheritance: addiu $v0, $s3, 0x74
+    li $v1, 0x4
+    sw $v1, 0x4($v0)
+
+    addu $a0, $s0, $zero
+    jal 0x00373E68 // Clear globals used for the handler
+    nop
+
+    functionEnd: li $v0, 0x0
+
+    proceedToFusion: nop
+
+    ld $ra,0x90($sp)
+    ld $fp,0x80($sp)
+    ld $s7,0x70($sp)
+    ld $s6,0x60($sp)
+    ld $s5,0x50($sp)
+    ld $s4,0x40($sp)
+    ld $s3,0x30($sp)
+    ld $s2,0x20($sp)
+    ld $s1,0x10($sp)
+    ld $s0,0x0($sp)
+    addiu $sp,$sp,0xB0
+    jr $ra
+    nop
+ASM_END
+
+ASM_START finalStepsBeforeFusion
+    lui $a3, 0x0037
+    lw $a2, 0x373C($a3)
+    sub $a1, $s1, 0x74 // Save fusion structure
+
+    addiu $a0, $a1, 0x2c // Get result persona skills address
+    lw $v0, 0x3710($a3)
+    sub $v0, $v0, $a2
+    li $v1, 0x1
+    sll $v0, $v0, $v1
+    addu $a0, $a0, $v0
+    sll $a2, $a2, $v1
+    addu $a1, $a3, 0x3720
+    jal 0x00521250 // memcpy our skill list onto the result persona list
+    nop
+
+    lui $a3, 0x0037
+    lw $a2, 0x373C($a3)
+    sub $a1, $s1, 0x74 // Save fusion structure
+
+    addiu $a0, $a1, 0x5a // Get result persona inherited skills address (for accidents)
+    lw $v0, 0x3710($a3)
+    sub $v0, $v0, $a2
+    li $v1, 0x1
+    sll $v0, $v0, $v1
+    addu $a0, $a0, $v0
+    sll $a2, $a2, $v1
+    addu $a1, $a3, 0x3720
+    jal 0x00521250 // memcpy our skill list onto the result persona list
+    nop
+    
+
+    lw $a0, 0x3730($a3) // Clear globals
+    jal 0x00373E68
+    nop
+    
+    j 0x003DDFBC
+    nop
+ASM_END
+
+ASM_START 0x003ddfa0
+    j 0x00373ECC // We clear globals when going to the actual fusion
+    nop
+ASM_END
+
+ASM_START force_O_ButtonPress
+    li $a3, 0x1
+    jal 0x00373A70 // We force back button press to erase last skill
+    nop
+    j 0x003DDFBC
+    nop
+ASM_END
+
+ASM_START 0x003ddfa8
+    addiu $v0, $zero, 0x9
+    sw $v0, 0x4($s1)
+    j 0x00373EB4
+    nop
+ASM_END
+
+ASM_START 0x003ddcc0
+    jal 0x0016deb0
+    lui $s7, 0x0037
+    dsll32 $s1, $v0, 0x10
+    dsra32 $s1, $s1, 0x10
+    daddu $a0, $s1, $zero
+    jal 0x0016dba0
+    sw $s0, 0x3700($s7) // Save draw structure for updating the view
+ASM_END
+
+ASM_START inheritanceMenuCase
+    jal 0x00373A70
+    li $a3, 0x0
+    beq $v0, $zero, inheritanceNotEnded
+    nop
+    li $v0, 0x7
+    sw $v0, 0x4($s1)
+    inheritanceNotEnded: j 0x003ddfbc
+    nop
+ASM_END
+
+ASM_START initManualInheritance
+    bne $v1,$zero,fusionStart
+    nop
+    sub $v0, $s1, 0x74 // Save fusion structure
+    addiu $a0, $v0, 0x20 // a0 -> persona_result_info in fusion structure
+    lw $a1, 0x18($v0) // a1 -> array_of_personas_in_fusion
+    lw $a2, 0xc($v0) // a2 -> number of members of fusion
+    jal 0x003737c4 // Create linked list with all inheritable skills
+    nop
+
+    skillsAvailableToSelect: lui $a1, 0x0037
+    sw $v0, 0x3730($a1) // Store inheritable skills linked list info
+    sw $v1, 0x3734($a1) // Store total inherited skill number
+    sw $a0, 0x3710($a1) // Store total number of skills result persona has counting inherited skills
+
+    beq $v1, $zero, fusionStart // If the list has no elements we can't choose any skills, so we skip to fusion directly
+    nop
+
+    move $a0, $v0
+    jal 0x00373F48 // Sort the linked list
+    nop
+
+    j 0x003DDE94 // Jump to begin skill inheritance processes
+    nop
+
+    fusionStart: j 0x003DDEB4 // Jump to begin fusion (beginFusion tag from 0x003dde84 modification)
+    nop
+ASM_END
+
+ASM_START 0x003dde84
+    lui $v0, 0x0037
+    lw $v1, 0x3714($v0)
+    j 0x00373E14
+    nop
+    lw $v0,0x0($s1)
+    ori $v0,$v0,0x10
+    sw $v0,0x0($s1)
+    addiu $a0,$zero,0x2
+    jal 0x003C7430
+    nop 
+    beq $zero,$zero,beginMsgHandlerCase
+    nop 
+    beginFusion: lhu $a0,0x1E($s1)
+    jal 0x003D5DC0
+    sw $zero, 0x3714($v0)
+    daddu $a0,$v0,$zero
+    jal 0x003C7430
+    nop 
+    daddu $a0,$zero,$zero
+    jal 0x003C74E0
+    nop 
+    beginMsgHandlerCase: addiu $v0,$zero,0x8
+    sw $v0,0x4($s1)
+ASM_END
+
+ASM_START msgHandler
+    andi $v0, $v1, 0x10
+    beq $v0, $zero, msgOptionsHandler
+    nop
+    li $v0, -0x11
+    and $v0, $v1, $v0
+    sw $v0, 0x0($s1)
+    li $v0, 0x9
+    sw $v0, 0x4($s1)
+    j 0x003ddfbc
+    nop
+
+    msgOptionsHandler: jal 0x003c7610
+    nop
+    j 0x003ddf84
+    nop
+ASM_END
+
+ASM_START 0x003ddf7c
+    j 0x00373DBC
+    nop
+ASM_END
+
+ASM_START 0x003DDD3C
+    sltiu $at, $v0, 0x10 // Add case 9 for inheritance menu
+ASM_END
+
+// ARGUMENTS ------------------------|
+// a0 -> persona_result_info         |
+// RETURNS ------------------------- |
+// v0 -> total persona skill number  |
+// v1 -> total inherited skill number|
+ASM_START getPersonaSkillNumbers
+    addiu $sp,$sp,-0x40
+    sd $s2, 0x30($sp)
+    sd $ra,0x20($sp)
+    sd $s1,0x10($sp)
+    sd $s0,0x0($sp)
+    daddu $s0,$a0,$zero
+    daddu $s1,$zero,$zero
+    daddu $v1,$zero,$zero
+    li $a0, 0xfff
+    daddu $s2, $zero, $zero
+    beq $zero,$zero,searchNumberEnd
+    nop 
+    searchNumberStart: sll $v0,$v1,0x01
+    addu $v0,$s0,$v0
+    lhu $v0,0xC($v0)
+    bne $v0, $a0, notInherited
+    nop
+    addiu $s2, $s2, 0x1
+    notInherited: beq $v0,$zero,isNotSkill
+    nop 
+    addiu $s1,$s1,0x1
+    isNotSkill: addiu $v1,$v1,0x1
+    searchNumberEnd: slti $v0,$v1,0x0008
+    bne $v0,$zero,searchNumberStart
+    nop 
+    daddu $v0,$s1,$zero
+    daddu $v1, $s2, $zero
+    ld $s2, 0x30($sp)
+    ld $ra,0x20($sp)
+    ld $s1,0x10($sp)
+    ld $s0,0x0($sp)
+    addiu $sp,$sp,0x40
+    jr $ra
+    nop
+ASM_END
+
+// ARGUMENTS ------------------------|
+// a0 -> persona_result_info         |
+// a1 -> array_of_personas_in_fusion |
+// a2 -> number of members of fusion |
+// RETURNS ------------------------- |
+// v0 -> skill linked list           |
+// v1 -> number of inherited skills  |
+// a0 -> number of persona skills    |
+ASM_START createInheritanceSkillLinkedList
+    addiu $sp,$sp,-0xB0
+    sd $ra,0x90($sp)
+    sd $fp,0x80($sp)
+    sd $s7,0x70($sp)
+    sd $s6,0x60($sp)
+    sd $s5,0x50($sp)
+    sd $s4,0x40($sp)
+    sd $s3,0x30($sp)
+    sd $s2,0x20($sp)
+    sd $s1,0x10($sp)
+    sd $s0,0x0($sp)
+
+    daddu $s4,$a0,$zero // persona_result_info
+    daddu $s6,$a1,$zero // array_of_personas_in_fusion
+    daddu $s7,$a2,$zero // members_of_fusion
+
+    daddu $s2,$zero,$zero
+    daddu $a0,$zero,$zero
+    daddu $a1,$zero,$zero
+    daddu $a2,$zero,$zero
+    daddu $a3,$zero,$zero
+    jal 0x003c44d0 // Create linked list info for all possible inherited skills
+    nop
+
+    daddu $s1,$v0,$zero
+    daddu $s3,$zero,$zero
+    beq $zero,$zero,personaForLoopCondition
+    nop 
+
+    personaForLoopStart: daddu $s5,$zero,$zero
+    sll $v0,$s3,0x02
+    addu $v0,$s6,$v0 // Get persona in list
+    sd $v0,0xA0($sp) 
+    beq $zero,$zero,skillForLoopCondition
+    nop
+    
+    skillForLoopStart: sll $v1,$s5,0x01
+    ld $v0,0xA0($sp)
+    lw $v0,0x0($v0)
+    addu $v0,$v0,$v1
+    lhu $s0,0xC($v0) // Load current persona skill
+    beq $s0,$zero,nextSkillIteration // If skill is null we jump to next skill iteration
+    nop 
+
+    addiu $s2,$s2,0x1 // Increment iterations counter
+    daddu $a0,$s4,$zero // $a0 -> persona_result_info
+    daddu $a1,$s0,$zero // $a1 -> current_skill
+    jal 0x00176990 // Get index of skill, if it doesn't exist return -1
+    nop
+    addiu $v1,$zero,-0x1
+    bne $v0,$v1,nextSkillIteration  // If skill is present in result persona we jump to next skill iteration
+    nop 
+
+    daddu $a0,$s1,$zero // $a0 -> inherited linked list information
+    addiu $a1,$s1,0x4 // $a1 -> linked list first element
+    daddu $a2,$s0,$zero // $a2 -> value to find, in this case current_skill
+    jal 0x003C4BF0 // Returns linked list element equal to value, if not found returns void linked list element
+    nop 
+    bne $v0,$zero,nextSkillIteration // If current_skill already in the list we jump to next skill iteration
+    nop 
+
+    sll $v1,$s0,0x01 // Whole inheritance check of current_skill (black box, checks a bunch of static data in the code)
+    lw $v0,-0x48FC($gp)
+    addu $v0,$v0,$v1
+    lb $v0,0x0($v0)
+    addiu $v1,$zero,-0x1
+    bne $v0,$v1,endIf_1
+    nop 
+    addiu $v0,$zero,0x12
+    endIf_1: lhu $a0,0x2($s4)
+    sll $v1,$a0,0x03
+    sub $v1,$v1,$a0 // Should work, but originally was a "subu"
+    sll $a0,$v1,0x01
+    lw $v1,-0x48D0($gp)
+    addu $v1,$v1,$a0
+    lhu $a0,0xA($v1)
+    sll $v1,$a0,0x03
+    addu $v1,$v1,$a0
+    sll $v1,$v1,0x01
+    addu $v1,$v1,$a0
+    sll $a0,$v1,0x01
+    lui $v1,0x006A
+    addiu $v1,$v1,0x48F0
+    addu $v1,$v1,$a0
+    sll $v0,$v0,0x01
+    addu $v0,$v0,$v1
+    lh $fp,0x0($v0)
+    jal 0x0017D800
+    nop 
+    beq $v0,$zero,ifStatement_2
+    nop 
+    lui $v0,0x006A
+    addiu $v0,$v0,0x4E10
+    addu $v0,$v0,$s0
+    lb $v1,0x0($v0)
+    beq $zero,$zero,endIf_2
+    nop 
+    ifStatement_2: lui $v0,0x006A
+    addiu $v0,$v0,0x4BA0
+    addu $v0,$v0,$s0
+    lb $v1,0x0($v0)
+    endIf_2: bne $v1,$zero,ifStatement_3
+    nop 
+    daddu $v0,$zero,$zero
+    beq $zero,$zero,endIf_3
+    nop 
+    ifStatement_3: sll $v0,$fp,0x02
+    addu $v0,$v0,$fp
+    sll $v0,$v0,0x01
+    div $v0,$v1
+    mflo $v0
+    endIf_3: beq $v0,$zero,nextSkillIteration
+    nop 
+    ifSkillInheritable: daddu $a0,$s1,$zero // $a0 -> inherited linked list information
+    daddu $a1,$zero,$zero // $a1 -> new linked list element to add, in this case 0 will create a new element
+    daddu $a2,$zero,$zero // $a2 -> size of linked list element
+    jal 0x003C4910 // Adds a new element into an existing linked list
+    nop 
+    sw $s0,0x4($v0) // Store current_skill value in new added element
+
+    nextSkillIteration: addiu $s5,$s5,0x1
+    skillForLoopCondition: slti $v0,$s5,0x0008
+    bne $v0,$zero,skillForLoopStart
+    nop 
+
+    addiu $s3,$s3,0x1
+    personaForLoopCondition: slt $v0,$s3,$s7
+    bne $v0,$zero,personaForLoopStart
+    nop
+
+
+    daddu $a0, $s4, $zero // $a0 -> result persona info
+    jal 0x003739e8 // jal getPersonaSkillNumbers -> Get number of inheritable skills and total number of result persona skills
+    nop
+    
+    daddu $a0, $zero, $v0 // We return total number of skills result persona has counting inherited skills
+    daddu $v0, $zero, $s1 // We return inheritable skills linked list info
+
+    ld $ra,0x90($sp)
+    ld $fp,0x80($sp)
+    ld $s7,0x70($sp)
+    ld $s6,0x60($sp)
+    ld $s5,0x50($sp)
+    ld $s4,0x40($sp)
+    ld $s3,0x30($sp)
+    ld $s2,0x20($sp)
+    ld $s1,0x10($sp)
+    ld $s0,0x0($sp)
+    addiu $sp,$sp,0xB0
+    jr $ra
+    nop
+ASM_END
+
+
+ASM_START 0x003D7978
+    nop
+    nop
+    nop
+    nop
+    nop
+    nop
+    nop
+    addiu $a1, $zero, 0xfff // We insert 0xfff into every inherited skill position
+    // This will bug the view and inherited skills will show up blank, perfect for this mod to replace later
+
+ASM_END
